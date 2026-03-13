@@ -543,12 +543,55 @@ footer{background:var(--ink);padding:40px 60px;display:flex;align-items:center;j
 </footer>
 
 <script>
+const SUPABASE_URL = 'https://vnybfdzcwwsluwyznayq.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_CabidZCpx37VmIWeJT-_4w_wJ9METXY';
+
 const cities=["Nashville","Austin","Denver","Scottsdale","Palm Springs","Charleston","Savannah","New Orleans","Miami","San Diego","Portland","Seattle","Chicago","Boston","Philadelphia","Breckenridge","Asheville","Sedona","Key West","Gatlinburg","Bend","Tybee Island","Gulf Shores","Big Bear","Lake Tahoe","Park City","Jackson Hole","Telluride","Malibu","Santa Fe"];
 function buildMarquee(){const t=document.getElementById('marquee');const d=[...cities,...cities,...cities];t.innerHTML=d.map(c=>`<div class="city-pill">${c}</div>`).join('');}
 buildMarquee();
-function handleSubmit(e){e.preventDefault();const email=document.getElementById('email-hero').value;if(!email)return;document.getElementById('form-hero').style.display='none';const s=document.getElementById('success-hero');s.style.display='block';s.textContent=`✓ You're on the list. We'll reach out with founding member access before launch.`;trackSignup(email);}
-function handleSubmitBottom(e){e.preventDefault();const email=document.getElementById('email-bottom').value;if(!email)return;e.target.style.display='none';const s=document.getElementById('success-bottom');s.style.display='block';s.textContent=`✓ You're on the list. Founding member pricing locked.`;trackSignup(email);}
-function trackSignup(email){console.log('Waitlist signup:',email);}
+
+async function trackSignup(email) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/waitlist`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ email, source: 'landing' })
+    });
+    if (!res.ok && res.status !== 409) {
+      console.error('Signup error:', res.status);
+    }
+  } catch(err) {
+    console.error('Signup failed:', err);
+  }
+}
+
+async function handleSubmit(e){
+  e.preventDefault();
+  const email=document.getElementById('email-hero').value;
+  if(!email)return;
+  document.getElementById('form-hero').style.display='none';
+  const s=document.getElementById('success-hero');
+  s.style.display='block';
+  s.textContent=`✓ You're on the list. We'll reach out with founding member access before launch.`;
+  await trackSignup(email);
+}
+
+async function handleSubmitBottom(e){
+  e.preventDefault();
+  const email=document.getElementById('email-bottom').value;
+  if(!email)return;
+  e.target.style.display='none';
+  const s=document.getElementById('success-bottom');
+  s.style.display='block';
+  s.textContent=`✓ You're on the list. Founding member pricing locked.`;
+  await trackSignup(email);
+}
+
 function scrollToWaitlist(){document.getElementById('waitlist').scrollIntoView({behavior:'smooth'});}
 const obs=new IntersectionObserver((entries)=>{entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible');});},{threshold:0.12});
 document.querySelectorAll('.fade-up').forEach(el=>obs.observe(el));
