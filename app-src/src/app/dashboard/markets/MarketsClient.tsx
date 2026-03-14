@@ -20,6 +20,16 @@ export default function MarketsClient({
   const [isPending, startTransition] = useTransition()
   const [feedback, setFeedback] = useState<{ city: string; msg: string } | null>(null)
   const isFree = tier === 'free'
+
+  async function handleUpgrade() {
+    const res = await fetch('/api/stripe/checkout', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({tier: 'pro'}),
+    })
+    const data = await res.json()
+    if (data.url) window.location.href = data.url
+  }
   const atLimit = cities.length >= maxMarkets
 
   function showFeedback(city: string, msg: string) {
@@ -59,9 +69,9 @@ export default function MarketsClient({
           <span style={{fontFamily:'var(--font-mono)',fontSize:'0.62rem',letterSpacing:'0.08em',color:'#b87d2d'}}>
             FREE PLAN · 1 market max · <strong>Upgrade to Pro</strong> for unlimited markets + real-time alerts
           </span>
-          <a href="https://strwatch.io/#pricing" style={{fontFamily:'var(--font-syne)',fontWeight:700,fontSize:'0.72rem',padding:'6px 14px',background:'#1a4d2e',color:'white',borderRadius:'6px',textDecoration:'none',whiteSpace:'nowrap'}}>
+          <button onClick={handleUpgrade} style={{fontFamily:'var(--font-syne)',fontWeight:700,fontSize:'0.72rem',padding:'6px 14px',background:'#1a4d2e',color:'white',borderRadius:'6px',border:'none',cursor:'pointer',whiteSpace:'nowrap'}}>
             Upgrade →
-          </a>
+          </button>
         </div>
       )}
 
