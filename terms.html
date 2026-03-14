@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terms of Service — STRWatch</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Epilogue:ital,wght@0,300;0,400;0,500;1,300;1,400&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+:root{
+  --white:#ffffff;--off-white:#f7f9f5;--border:#d8e8cf;--border-mid:#bfd4b0;
+  --text:#0f1a0a;--text-mid:#374530;--text-muted:#6b7c63;--text-faint:#9aab90;
+  --green-deep:#1a4d2e;--green:#2d7a4f;--green-bright:#4db87a;
+  --green-light:#c8ecd8;--green-pale:#e8f5ee;--mint:#a8e6c3;--ink:#0f1a0a;
+}
+body{background:var(--white);color:var(--text);font-family:'Epilogue',system-ui,sans-serif;font-size:16px;line-height:1.7;}
+a{color:var(--green);text-decoration:none;}
+a:hover{text-decoration:underline;}
+
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:0 40px;display:flex;align-items:center;justify-content:space-between;height:62px;background:rgba(255,255,255,0.92);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);}
+.nav-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.05rem;color:var(--ink);letter-spacing:-0.02em;text-decoration:none;}
+.nav-logo span{color:var(--green);}
+.nav-back{font-family:'JetBrains Mono',monospace;font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);}
+.nav-back:hover{color:var(--ink);text-decoration:none;}
+
+.hero-bar{background:var(--green-deep);padding:100px 60px 48px;position:relative;overflow:hidden;}
+.hero-bar::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.04) 1px,transparent 1px);background-size:48px 48px;}
+.hero-inner{position:relative;max-width:720px;margin:0 auto;}
+.hero-eyebrow{font-family:'JetBrains Mono',monospace;font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--mint);opacity:0.7;margin-bottom:0.75rem;}
+.hero-title{font-family:'Syne',sans-serif;font-weight:800;font-size:2rem;color:white;letter-spacing:-0.03em;line-height:1.15;margin-bottom:0.5rem;}
+.hero-sub{font-family:'Epilogue',sans-serif;font-size:0.85rem;color:rgba(255,255,255,0.5);}
+
+.content{max-width:720px;margin:0 auto;padding:48px 60px 80px;}
+.updated{font-family:'JetBrains Mono',monospace;font-size:0.6rem;letter-spacing:0.1em;color:var(--text-faint);text-transform:uppercase;margin-bottom:2rem;padding-bottom:1rem;border-bottom:1px solid var(--border);}
+
+h2{font-family:'Syne',sans-serif;font-weight:700;font-size:1.15rem;color:var(--ink);margin:2.5rem 0 0.75rem;letter-spacing:-0.01em;}
+h2:first-of-type{margin-top:0;}
+p{margin-bottom:1rem;color:var(--text-mid);font-size:0.92rem;line-height:1.75;}
+ul,ol{margin:0 0 1rem 1.5rem;color:var(--text-mid);font-size:0.92rem;line-height:1.75;}
+li{margin-bottom:0.4rem;}
+strong{color:var(--ink);font-weight:600;}
+
+footer{background:var(--ink);padding:32px 60px;display:flex;align-items:center;justify-content:space-between;}
+.footer-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:0.95rem;color:rgba(255,255,255,0.4);letter-spacing:-0.02em;}
+.footer-logo span{color:rgba(77,184,122,0.7);}
+.footer-links{display:flex;gap:20px;}
+.footer-links a{font-family:'JetBrains Mono',monospace;font-size:0.58rem;letter-spacing:0.06em;color:rgba(255,255,255,0.3);}
+.footer-links a:hover{color:rgba(255,255,255,0.6);text-decoration:none;}
+
+@media(max-width:768px){
+  nav{padding:0 20px;}
+  .hero-bar{padding:88px 24px 36px;}
+  .content{padding:36px 24px 60px;}
+  footer{padding:24px 20px;flex-direction:column;gap:10px;text-align:center;}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="/">STR<span>Watch</span></a>
+  <a class="nav-back" href="/">← Back to home</a>
+</nav>
+
+<div class="hero-bar">
+  <div class="hero-inner">
+    <div class="hero-eyebrow">Legal</div>
+    <div class="hero-title">Terms of Service</div>
+    <div class="hero-sub">The rules for using STRWatch. Plain language where possible.</div>
+  </div>
+</div>
+
+<div class="content">
+  <div class="updated">Last updated: March 14, 2026</div>
+
+  <h2>1. Agreement to Terms</h2>
+  <p>By accessing or using STRWatch ("Service"), operated by STRWatch ("Company," "we," "us"), you agree to be bound by these Terms of Service. If you do not agree, do not use the Service. These Terms constitute a legally binding agreement between you and STRWatch.</p>
+
+  <h2>2. Description of Service</h2>
+  <p>STRWatch is a regulatory monitoring platform for short-term rental (STR) hosts and property managers. The Service monitors publicly available government data sources — including city websites, council agendas, and open data APIs — and delivers alerts about regulation changes, permit deadlines, and enforcement actions relevant to your markets.</p>
+  <p>The Service includes:</p>
+  <ul>
+    <li>Regulation change alerts via email and SMS</li>
+    <li>Permit deadline tracking and reminders</li>
+    <li>A searchable database of STR regulations by city</li>
+    <li>AI-generated compliance checklists (when available)</li>
+    <li>Pre-investment market regulation scans</li>
+  </ul>
+
+  <h2>3. Eligibility</h2>
+  <p>You must be at least 18 years old and capable of forming a binding contract to use this Service. By using STRWatch, you represent that you meet these requirements.</p>
+
+  <h2>4. Account Registration</h2>
+  <p>To access certain features, you must create an account. You agree to provide accurate, current information and to keep your account credentials secure. You are responsible for all activity that occurs under your account. Notify us immediately at <a href="mailto:support@strwatch.io">support@strwatch.io</a> if you suspect unauthorized access.</p>
+
+  <h2>5. Subscription Plans & Payments</h2>
+  <p><strong>Free Tier:</strong> Includes 1 tracked city and weekly email alerts at no cost.</p>
+  <p><strong>Pro Tier ($29/month):</strong> Includes unlimited cities, real-time alerts (48-hour SLA), SMS notifications, permit deadline tracking, and AI compliance checklists. Founding member pricing is locked at the rate in effect at the time of your first paid subscription and will not increase for your account as long as your subscription remains active.</p>
+  <p><strong>Agency Tier ($99/month):</strong> Includes everything in Pro plus white-label reports, client portfolio management, API access, and a dedicated account manager.</p>
+  <p>Paid subscriptions are billed monthly through Stripe. You authorize us to charge your payment method on a recurring basis. All fees are in US dollars.</p>
+
+  <h2>6. Cancellation & Refunds</h2>
+  <p>You may cancel your subscription at any time through your account dashboard or by contacting <a href="mailto:support@strwatch.io">support@strwatch.io</a>. Cancellation takes effect at the end of your current billing cycle — you retain access until then. We do not provide prorated refunds for partial billing periods.</p>
+  <p>If you cancel and later resubscribe, founding member pricing is not guaranteed — you will be charged the price in effect at the time of resubscription.</p>
+
+  <h2>7. Acceptable Use</h2>
+  <p>You agree not to:</p>
+  <ul>
+    <li>Use the Service for any unlawful purpose</li>
+    <li>Resell, sublicense, or redistribute STRWatch data or alerts without authorization</li>
+    <li>Scrape, crawl, or automate access to the Service beyond normal use</li>
+    <li>Attempt to interfere with, compromise, or disrupt the Service or its infrastructure</li>
+    <li>Impersonate another person or misrepresent your affiliation</li>
+    <li>Use the Service to send spam or unsolicited communications</li>
+  </ul>
+  <p>Violation of these terms may result in immediate account suspension or termination.</p>
+
+  <h2>8. Intellectual Property</h2>
+  <p>All content, code, design, branding, and data compilations within STRWatch are owned by or licensed to STRWatch and are protected by copyright, trademark, and other intellectual property laws. You may not copy, modify, distribute, or create derivative works from our Service without written permission.</p>
+  <p>Government regulation data monitored by STRWatch is publicly available information. Our value-add — the compilation, analysis, personalization, and alert delivery — is proprietary.</p>
+
+  <h2>9. Disclaimer of Warranties</h2>
+  <p><strong>The Service is provided "as is" and "as available" without warranties of any kind, express or implied.</strong></p>
+  <p>STRWatch is a monitoring and alerting tool — not a law firm, not a compliance consultant, and not a substitute for legal advice. While we strive for accuracy and timeliness:</p>
+  <ul>
+    <li>We do not guarantee that our data is complete, accurate, or current at all times</li>
+    <li>We do not guarantee that alerts will be delivered within any specific timeframe</li>
+    <li>We do not guarantee that all regulatory changes in a market will be detected</li>
+    <li>You should independently verify all regulation information before making compliance decisions</li>
+  </ul>
+  <p><strong>Do not rely solely on STRWatch for legal compliance.</strong> Consult a qualified attorney for legal advice specific to your situation.</p>
+
+  <h2>10. Limitation of Liability</h2>
+  <p>To the maximum extent permitted by law, STRWatch and its officers, employees, and affiliates shall not be liable for any indirect, incidental, special, consequential, or punitive damages — including but not limited to loss of revenue, fines, penalties, permit revocations, or lost profits — arising from your use of or inability to use the Service.</p>
+  <p>Our total aggregate liability for any claim arising from the Service shall not exceed the amount you paid to STRWatch in the twelve (12) months preceding the claim.</p>
+
+  <h2>11. Indemnification</h2>
+  <p>You agree to indemnify and hold harmless STRWatch and its officers, employees, and affiliates from any claims, losses, damages, liabilities, and expenses (including attorneys' fees) arising from your use of the Service, your violation of these Terms, or your violation of any law or third-party rights.</p>
+
+  <h2>12. Termination</h2>
+  <p>We reserve the right to suspend or terminate your account at any time, with or without notice, for conduct that we determine violates these Terms or is harmful to other users, the Service, or third parties. Upon termination, your right to use the Service ceases immediately.</p>
+
+  <h2>13. Changes to Terms</h2>
+  <p>We may update these Terms from time to time. If we make material changes, we will notify you by email or through the Service at least 14 days before the changes take effect. Your continued use of the Service after the effective date constitutes acceptance of the revised Terms.</p>
+
+  <h2>14. Governing Law</h2>
+  <p>These Terms are governed by and construed in accordance with the laws of the State of Illinois, United States, without regard to its conflict of law provisions. Any disputes arising from these Terms shall be resolved in the state or federal courts located in Cook County, Illinois.</p>
+
+  <h2>15. Contact</h2>
+  <p>Questions about these Terms? Reach us at:</p>
+  <p><strong>STRWatch</strong><br>
+  Email: <a href="mailto:support@strwatch.io">support@strwatch.io</a><br>
+  Web: <a href="https://www.strwatch.io">www.strwatch.io</a></p>
+</div>
+
+<footer>
+  <div class="footer-logo">STR<span>Watch</span></div>
+  <div class="footer-links">
+    <a href="/terms.html">Terms of Service</a>
+    <a href="/privacy.html">Privacy Policy</a>
+    <a href="/">Home</a>
+  </div>
+</footer>
+
+</body>
+</html>
