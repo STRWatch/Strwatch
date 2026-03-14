@@ -193,6 +193,49 @@ footer{background:var(--ink);padding:40px 60px;display:flex;align-items:center;j
 /* SCROLL ANIMATION */
 .fade-up{opacity:0;transform:translateY(20px);transition:opacity 0.55s ease,transform 0.55s ease;}
 .fade-up.visible{opacity:1;transform:translateY(0);}
+
+/* ── MOBILE RESPONSIVE ──────────────────────────────────── */
+@media(max-width:768px){
+  nav{padding:0 20px;}
+  .nav-link{display:none;}
+  .nav-cta{padding:8px 16px;font-size:0.72rem;}
+  .hero{padding:88px 24px 56px;min-height:auto;}
+  .hero-inner{grid-template-columns:1fr;gap:36px;}
+  .hero-right{display:none;}
+  h1{font-size:clamp(2.2rem,9vw,3rem);}
+  .hero-sub{font-size:0.95rem;}
+  .form-row{flex-direction:column;max-width:100%;}
+  .waitlist-btn{width:100%;padding:14px;text-align:center;}
+  .waitlist-success{max-width:100%;}
+  .hero-stats{margin-top:2rem;padding-top:1.5rem;}
+  .hero-stat{padding-right:1rem;}
+  .hero-stat:not(:first-child):not(:last-child){padding-left:1rem;}
+  .hero-stat:last-child{padding-left:1rem;}
+  .stat-val{font-size:1.4rem;}
+  .section{padding:48px 24px;}
+  h2{font-size:clamp(1.6rem,6vw,2.2rem);}
+  .section-lead{font-size:0.95rem;}
+  .two-col{grid-template-columns:1fr;gap:32px;}
+  .problem-stats{grid-template-columns:1fr 1fr;gap:10px;}
+  .steps-grid{grid-template-columns:1fr;}
+  .step{padding:1.75rem 1.5rem;}
+  .features-grid{grid-template-columns:1fr 1fr;}
+  .feature{padding:1.5rem 1.25rem;}
+  .testimonials{grid-template-columns:1fr;}
+  .pricing-grid{grid-template-columns:1fr;}
+  .bottom-cta{padding:56px 24px;}
+  .bottom-form{flex-direction:column;}
+  .bottom-form .waitlist-btn{width:100%;padding:14px;}
+  footer{padding:28px 24px;flex-direction:column;gap:10px;text-align:center;}
+}
+@media(max-width:480px){
+  .features-grid{grid-template-columns:1fr;}
+  .problem-stats{grid-template-columns:1fr;}
+  h1{font-size:2rem;}
+  .hero{padding:80px 20px 48px;}
+  .section{padding:40px 20px;}
+  .pstat-val{font-size:1.25rem;}
+}
 </style>
 </head>
 <body>
@@ -381,19 +424,19 @@ footer{background:var(--ink);padding:40px 60px;display:flex;align-items:center;j
           <div class="alert-bar-label">Regulation alert — Nashville, TN</div>
         </div>
         <div class="alert-content">
-          <div class="alert-date">March 11, 2026 · 9:14 AM</div>
-          <div class="alert-headline">Nashville Metro Council passed Ordinance BL2026-1147: All STR operators must renew permits under new tiered system by April 15</div>
+          <div class="alert-date">October 23, 2025 · 8:47 AM</div>
+          <div class="alert-headline">Nashville Metro Council Resolution RS2025-1172: STR distance requirement exemption granted — signals upcoming zoning expansion review for Q2 2026</div>
           <div class="alert-tags">
-            <span class="alert-tag tag-red">Permit deadline</span>
+            <span class="alert-tag tag-red">Zoning change</span>
             <span class="alert-tag tag-blue">Council vote passed</span>
-            <span class="alert-tag tag-green">35 days to comply</span>
+            <span class="alert-tag tag-green">Action required</span>
           </div>
           <div class="alert-detail">
             <span class="alert-strong">What this means for you:</span><br>
-            Your 3 Nashville properties require new-tier permit applications. Tier 2 applies (owner non-resident). Fee: $150/property. No longer exempt from density cap.
+            Metro Council is reviewing STR overlay district expansion in Q2 2026. Non-owner-occupied permits remain restricted in R/RS zones. Annual permit renewal required — operating without valid permit risks $500/day fines.
           </div>
           <div class="alert-meta">
-            <span>Source: Nashville Metro Clerk, Ord. BL2026-1147</span>
+            <span>Source: Nashville Metro Clerk, RS2025-1172</span>
             <span style="color:var(--green);">Verified ✓</span>
           </div>
           <a class="alert-action">View full compliance checklist →</a>
