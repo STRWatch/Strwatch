@@ -17,14 +17,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         zIndex:50,
         boxShadow:'0 1px 3px rgba(0,0,0,0.06)'
       }}>
-        <div style={{display:'flex', alignItems:'center', gap:'32px'}}>
+        <div style={{display:'flex', alignItems:'center', gap:'28px'}}>
           <Link href="/dashboard" style={{fontWeight:800, fontSize:'1.1rem', color:'#0f1a0a', textDecoration:'none', letterSpacing:'-0.02em'}}>
             STR<span style={{color:'#2d7a4f'}}>Watch</span>
           </Link>
-          <Link href="/dashboard" style={{fontSize:'0.875rem', color:'#6b7280', textDecoration:'none'}}>Overview</Link>
-          <Link href="/dashboard/markets" style={{fontSize:'0.875rem', color:'#6b7280', textDecoration:'none'}}>Markets</Link>
-          <Link href="/dashboard/deadlines" style={{fontSize:'0.875rem', color:'#6b7280', textDecoration:'none'}}>Deadlines</Link>
-          <Link href="/dashboard/alerts" style={{fontSize:'0.875rem', color:'#6b7280', textDecoration:'none'}}>Alerts</Link>
+          <Link href="/dashboard" style={{fontSize:'0.82rem', color:'#6b7280', textDecoration:'none'}}>Overview</Link>
+          <Link href="/dashboard/markets" style={{fontSize:'0.82rem', color:'#6b7280', textDecoration:'none'}}>Markets</Link>
+          <Link href="/dashboard/deadlines" style={{fontSize:'0.82rem', color:'#6b7280', textDecoration:'none'}}>Deadlines</Link>
+          <Link href="/dashboard/scans" style={{fontSize:'0.82rem', color:'#6b7280', textDecoration:'none'}}>Scans</Link>
+          <Link href="/dashboard/alerts" style={{fontSize:'0.82rem', color:'#6b7280', textDecoration:'none'}}>Alerts</Link>
         </div>
         <UserButton />
       </nav>

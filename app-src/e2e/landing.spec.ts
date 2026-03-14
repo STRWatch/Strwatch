@@ -46,11 +46,9 @@ test.describe('Landing Page', () => {
     await expect(emailInput).toBeVisible()
     await expect(submitBtn).toBeVisible()
 
-    // Submit with a test email
     await emailInput.fill('e2etest@example.com')
     await submitBtn.click()
 
-    // Success message should appear
     const success = page.locator('#success-hero')
     await expect(success).toBeVisible({ timeout: 5000 })
     await expect(success).toContainText("You're on the list")
@@ -59,7 +57,9 @@ test.describe('Landing Page', () => {
   test('fine ticker shows enforcement examples', async ({ page }) => {
     const ticker = page.locator('.fine-ticker')
     await expect(ticker).toBeVisible()
-    await expect(ticker.locator('.fine-city')).toHaveCount({ minimum: 4 })
+    // Use gte assertion instead of object — Playwright toHaveCount takes exact number
+    const count = await ticker.locator('.fine-city').count()
+    expect(count).toBeGreaterThanOrEqual(4)
     await expect(ticker).toContainText('Nashville')
     await expect(ticker).toContainText('Austin')
     await expect(ticker).toContainText('Denver')
@@ -83,7 +83,8 @@ test.describe('Landing Page', () => {
     const checklist = page.locator('.checklist')
     await expect(checklist).toBeVisible()
     await expect(checklist).toContainText('AI compliance checklist')
-    await expect(checklist.locator('.checklist-step')).toHaveCount({ minimum: 4 })
+    const stepCount = await checklist.locator('.checklist-step').count()
+    expect(stepCount).toBeGreaterThanOrEqual(4)
   })
 
   test('features section has 6 features', async ({ page }) => {
@@ -111,7 +112,6 @@ test.describe('Landing Page — Mobile', () => {
   test('mobile layout hides nav links', async ({ page }) => {
     await page.goto(LANDING_URL)
     const navLinks = page.locator('a.nav-link')
-    // Nav links should be hidden on mobile
     for (const link of await navLinks.all()) {
       await expect(link).not.toBeVisible()
     }

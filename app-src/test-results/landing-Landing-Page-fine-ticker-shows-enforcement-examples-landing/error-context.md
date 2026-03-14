@@ -1,0 +1,431 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - navigation [ref=e2]:
+    - link "STRWatch" [ref=e3] [cursor=pointer]:
+      - /url: "#"
+    - generic [ref=e4]:
+      - link "How it works" [ref=e5] [cursor=pointer]:
+        - /url: "#how"
+      - link "Features" [ref=e6] [cursor=pointer]:
+        - /url: "#features"
+      - link "Pricing" [ref=e7] [cursor=pointer]:
+        - /url: "#pricing"
+      - link "Start free trial" [ref=e8] [cursor=pointer]:
+        - /url: https://app.strwatch.io/sign-up
+  - generic [ref=e11]:
+    - generic [ref=e12]:
+      - generic [ref=e13]: Beta open · Nashville · Austin · Denver · Scottsdale · Palm Springs
+      - heading "Never miss a regulation change that costs you." [level=1] [ref=e15]:
+        - text: Never miss a
+        - emphasis [ref=e16]: regulation change
+        - text: that costs you.
+      - paragraph [ref=e17]: STRWatch watches city hall so you don't have to. 48-hour alerts on permit deadlines, ordinance changes, and enforcement actions — personalized to your properties.
+      - generic [ref=e18]:
+        - generic [ref=e19]: In one of these markets?
+        - link "Try Pro free for 45 days →" [ref=e20] [cursor=pointer]:
+          - /url: https://app.strwatch.io/sign-up
+      - generic [ref=e21]:
+        - textbox "your@email.com" [ref=e22]
+        - button "Join waitlist" [ref=e23] [cursor=pointer]
+      - paragraph [ref=e24]:
+        - strong [ref=e25]: 45-day free Pro trial
+        - text: · No credit card required · Then $29/mo
+      - generic [ref=e26]:
+        - generic [ref=e27]:
+          - generic [ref=e28]: 600+
+          - generic [ref=e29]: Cities tracked
+        - generic [ref=e30]:
+          - generic [ref=e31]: 48hr
+          - generic [ref=e32]: Alert SLA
+        - generic [ref=e33]:
+          - generic [ref=e34]: $0
+          - generic [ref=e35]: To get started
+    - generic [ref=e37]:
+      - generic [ref=e38]:
+        - generic [ref=e39]: Recent enforcement actions
+        - generic [ref=e40]: Live
+      - generic [ref=e42]:
+        - generic [ref=e43]:
+          - generic [ref=e44]: Nashville, TN
+          - generic [ref=e45]: Type 2 permit lapsed · missed renewal window
+        - generic [ref=e46]:
+          - generic [ref=e47]: $500
+          - generic [ref=e48]: per day unlicensed
+      - generic [ref=e49]:
+        - generic [ref=e50]:
+          - generic [ref=e51]: Denver, CO
+          - generic [ref=e52]: Exceeded night cap after new ordinance · Feb 2026
+        - generic [ref=e53]:
+          - generic [ref=e54]: $1,000
+          - generic [ref=e55]: per night over limit
+      - generic [ref=e56]:
+        - generic [ref=e57]:
+          - generic [ref=e58]: Austin, TX
+          - generic [ref=e59]: Zoning reclassification, missed deadline · Jan 2026
+        - generic [ref=e60]:
+          - generic [ref=e61]: $3,000
+          - generic [ref=e62]: + permit revocation
+      - generic [ref=e63]:
+        - generic [ref=e64]:
+          - generic [ref=e65]: Palm Springs, CA
+          - generic [ref=e66]: TOT license renewal missed · Dec 2025
+        - generic [ref=e67]:
+          - generic [ref=e68]: $500
+          - generic [ref=e69]: per day unlicensed
+      - generic [ref=e70]:
+        - generic [ref=e71]:
+          - generic [ref=e72]: Scottsdale, AZ
+          - generic [ref=e73]: Operating without city license · unlicensed listing
+        - generic [ref=e74]:
+          - generic [ref=e75]: $1,000
+          - generic [ref=e76]: per violation
+  - generic [ref=e78]:
+    - generic [ref=e79]: Nashville
+    - generic [ref=e80]: Austin
+    - generic [ref=e81]: Denver
+    - generic [ref=e82]: Scottsdale
+    - generic [ref=e83]: Palm Springs
+    - generic [ref=e84]: Charleston
+    - generic [ref=e85]: Savannah
+    - generic [ref=e86]: New Orleans
+    - generic [ref=e87]: Miami
+    - generic [ref=e88]: San Diego
+    - generic [ref=e89]: Portland
+    - generic [ref=e90]: Seattle
+    - generic [ref=e91]: Chicago
+    - generic [ref=e92]: Boston
+    - generic [ref=e93]: Philadelphia
+    - generic [ref=e94]: Breckenridge
+    - generic [ref=e95]: Asheville
+    - generic [ref=e96]: Sedona
+    - generic [ref=e97]: Key West
+    - generic [ref=e98]: Gatlinburg
+    - generic [ref=e99]: Bend
+    - generic [ref=e100]: Tybee Island
+    - generic [ref=e101]: Gulf Shores
+    - generic [ref=e102]: Big Bear
+    - generic [ref=e103]: Lake Tahoe
+    - generic [ref=e104]: Park City
+    - generic [ref=e105]: Jackson Hole
+    - generic [ref=e106]: Telluride
+    - generic [ref=e107]: Malibu
+    - generic [ref=e108]: Santa Fe
+    - generic [ref=e109]: Nashville
+    - generic [ref=e110]: Austin
+    - generic [ref=e111]: Denver
+    - generic [ref=e112]: Scottsdale
+    - generic [ref=e113]: Palm Springs
+    - generic [ref=e114]: Charleston
+    - generic [ref=e115]: Savannah
+    - generic [ref=e116]: New Orleans
+    - generic [ref=e117]: Miami
+    - generic [ref=e118]: San Diego
+    - generic [ref=e119]: Portland
+    - generic [ref=e120]: Seattle
+    - generic [ref=e121]: Chicago
+    - generic [ref=e122]: Boston
+    - generic [ref=e123]: Philadelphia
+    - generic [ref=e124]: Breckenridge
+    - generic [ref=e125]: Asheville
+    - generic [ref=e126]: Sedona
+    - generic [ref=e127]: Key West
+    - generic [ref=e128]: Gatlinburg
+    - generic [ref=e129]: Bend
+    - generic [ref=e130]: Tybee Island
+    - generic [ref=e131]: Gulf Shores
+    - generic [ref=e132]: Big Bear
+    - generic [ref=e133]: Lake Tahoe
+    - generic [ref=e134]: Park City
+    - generic [ref=e135]: Jackson Hole
+    - generic [ref=e136]: Telluride
+    - generic [ref=e137]: Malibu
+    - generic [ref=e138]: Santa Fe
+    - generic [ref=e139]: Nashville
+    - generic [ref=e140]: Austin
+    - generic [ref=e141]: Denver
+    - generic [ref=e142]: Scottsdale
+    - generic [ref=e143]: Palm Springs
+    - generic [ref=e144]: Charleston
+    - generic [ref=e145]: Savannah
+    - generic [ref=e146]: New Orleans
+    - generic [ref=e147]: Miami
+    - generic [ref=e148]: San Diego
+    - generic [ref=e149]: Portland
+    - generic [ref=e150]: Seattle
+    - generic [ref=e151]: Chicago
+    - generic [ref=e152]: Boston
+    - generic [ref=e153]: Philadelphia
+    - generic [ref=e154]: Breckenridge
+    - generic [ref=e155]: Asheville
+    - generic [ref=e156]: Sedona
+    - generic [ref=e157]: Key West
+    - generic [ref=e158]: Gatlinburg
+    - generic [ref=e159]: Bend
+    - generic [ref=e160]: Tybee Island
+    - generic [ref=e161]: Gulf Shores
+    - generic [ref=e162]: Big Bear
+    - generic [ref=e163]: Lake Tahoe
+    - generic [ref=e164]: Park City
+    - generic [ref=e165]: Jackson Hole
+    - generic [ref=e166]: Telluride
+    - generic [ref=e167]: Malibu
+    - generic [ref=e168]: Santa Fe
+  - generic [ref=e170]:
+    - generic [ref=e171]:
+      - generic [ref=e172]: The real cost of missing a deadline
+      - heading "Hosts are getting fined. Every week." [level=2] [ref=e173]
+      - paragraph [ref=e174]: STR regulations change constantly — new permit caps, zoning reclassifications, license renewals. Most hosts find out from their platform, after it's too late.
+      - paragraph [ref=e175]: "STRWatch monitors the source: city government sites, council agendas, planning meetings. You get the alert before anyone else."
+    - generic [ref=e177]:
+      - generic [ref=e178]:
+        - generic [ref=e179]: $500/day
+        - generic [ref=e180]: Nashville, TN
+        - generic [ref=e181]: Type 2 permit lapsed · missed renewal window
+      - generic [ref=e182]:
+        - generic [ref=e183]: $1,000/night
+        - generic [ref=e184]: Denver, CO
+        - generic [ref=e185]: Exceeded night cap after new ordinance · Feb 2026
+      - generic [ref=e186]:
+        - generic [ref=e187]: $3,000+
+        - generic [ref=e188]: Austin, TX
+        - generic [ref=e189]: Zoning reclassification + permit revocation · Jan 2026
+      - generic [ref=e190]:
+        - generic [ref=e191]: $1,000/violation
+        - generic [ref=e192]: Scottsdale, AZ
+        - generic [ref=e193]: Operating without city license · unlicensed listing
+  - generic [ref=e195]:
+    - generic [ref=e196]: How STRWatch works
+    - heading "Set up in 5 minutes. Sleep soundly after that." [level=2] [ref=e197]:
+      - text: Set up in 5 minutes.
+      - text: Sleep soundly after that.
+    - generic [ref=e198]:
+      - generic [ref=e199]:
+        - generic [ref=e200]: — 01
+        - generic [ref=e201]: Add your properties
+        - paragraph [ref=e202]: Tell us your markets — city, zip, or address. STRWatch instantly pulls every active regulation that applies and builds your compliance profile.
+      - generic [ref=e203]:
+        - generic [ref=e204]: — 02
+        - generic [ref=e205]: We watch city hall
+        - paragraph [ref=e206]: Our system monitors 600+ city government sites, council agendas, and planning commission minutes around the clock. When something changes, we know within 48 hours.
+      - generic [ref=e207]:
+        - generic [ref=e208]: — 03
+        - generic [ref=e209]: You get the alert first
+        - paragraph [ref=e210]: Email or SMS with exactly what changed, what it means for your specific properties, and what you need to do — with deadline reminders so nothing slips.
+  - generic [ref=e212]:
+    - generic [ref=e214]:
+      - generic [ref=e217]: Regulation alert — Nashville, TN
+      - generic [ref=e218]:
+        - generic [ref=e219]: October 23, 2025 · 8:47 AM
+        - generic [ref=e220]: "Nashville Metro Council Resolution RS2025-1172: STR distance requirement exemption granted — signals upcoming zoning expansion review for Q2 2026"
+        - generic [ref=e221]:
+          - generic [ref=e222]: Zoning change
+          - generic [ref=e223]: Council vote passed
+          - generic [ref=e224]: Action required
+        - generic [ref=e225]:
+          - text: "What this means for you:"
+          - text: Metro Council is reviewing STR overlay district expansion in Q2 2026. Non-owner-occupied permits remain restricted in R/RS zones. Annual permit renewal required — operating without valid permit risks $500/day fines.
+        - generic [ref=e226]:
+          - generic [ref=e227]:
+            - generic [ref=e228]: AI compliance checklist
+            - generic [ref=e229]: Generated by STRWatch AI
+          - generic [ref=e230]:
+            - generic [ref=e231]: "⚠ DEADLINE: April 15 — permit renewal under new tiered system"
+            - generic [ref=e232]:
+              - generic [ref=e233]: "1."
+              - generic [ref=e234]:
+                - generic [ref=e235]: Determine your new permit tier classification
+                - generic [ref=e236]: Review whether your property is owner-occupied or non-owner occupied. Check your current permit documentation and confirm which tier applies under the new system.
+            - generic [ref=e237]:
+              - generic [ref=e238]: "2."
+              - generic [ref=e239]:
+                - generic [ref=e240]: Gather required renewal documentation
+                - generic [ref=e241]: Proof of ownership, current STR permit number, liability insurance ($500K+ coverage), responsible party contact info, and recent tax records.
+            - generic [ref=e242]:
+              - generic [ref=e243]: "3."
+              - generic [ref=e244]:
+                - generic [ref=e245]: Check permit cap restrictions for your zone
+                - generic [ref=e246]: Non-owner occupied STRs are subject to Nashville's permit cap. Verify your zoning district status. Contact Metro Planning at 615-862-7150.
+            - generic [ref=e247]:
+              - generic [ref=e248]: "4."
+              - generic [ref=e249]:
+                - generic [ref=e250]: Submit renewal via Metro portal
+                - generic [ref=e251]: Complete online renewal, upload documents, pay fee ($150–$400 depending on tier). Verify URL with Metro Codes at 615-862-6590.
+            - generic [ref=e252]:
+              - generic [ref=e253]: "5."
+              - generic [ref=e254]:
+                - generic [ref=e255]: Update platform listings with new permit number
+                - generic [ref=e256]: Nashville requires permit numbers on all Airbnb/VRBO listings. Platforms may delist properties without current valid permits.
+            - generic [ref=e257]:
+              - generic [ref=e258]: "6."
+              - generic [ref=e259]:
+                - generic [ref=e260]: Confirm compliance by April 10
+                - generic [ref=e261]: Follow up with Metro Codes 5 days before deadline. Operating without a valid permit after April 15 → $50–$500/day fines + immediate platform delisting.
+          - generic [ref=e262]: Generated by STRWatch AI · Verify details with your local government
+        - generic [ref=e263]:
+          - generic [ref=e264]: "Source: Nashville Metro Clerk, RS2025-1172"
+          - generic [ref=e265]: Verified ✓
+    - generic [ref=e266]:
+      - generic [ref=e267]: What an alert looks like
+      - heading "Not \"something changed.\" Exactly what it means for you." [level=2] [ref=e268]:
+        - text: Not "something changed." Exactly what it means
+        - emphasis [ref=e269]: for you.
+      - paragraph [ref=e270]: Every alert is personalized to your specific properties and markets. We tell you the regulation, the deadline, what it means, and what to do next.
+      - paragraph [ref=e271]:
+        - text: Each alert includes an
+        - strong [ref=e272]: AI-generated compliance checklist
+        - text: — specific action steps, phone numbers, fee amounts, and deadlines so you never have to decode city council legalese yourself.
+      - paragraph [ref=e273]: No noise. No guesswork. Just do this, by this date.
+  - generic [ref=e275]:
+    - generic [ref=e276]: What's included
+    - heading "Everything a serious host needs to stay compliant." [level=2] [ref=e277]:
+      - text: Everything a serious host needs
+      - text: to stay compliant.
+    - generic [ref=e278]:
+      - generic [ref=e279]:
+        - generic [ref=e280]: "01"
+        - generic [ref=e281]: Real-time regulation alerts
+        - paragraph [ref=e282]: 48-hour SLA from ordinance enactment to your inbox. Email and SMS. Sorted by urgency, not date.
+      - generic [ref=e283]:
+        - generic [ref=e284]: "02"
+        - generic [ref=e285]: Permit deadline tracker
+        - paragraph [ref=e286]: Every permit renewal, license expiration, and compliance deadline — tracked and reminded. No more calendar spreadsheets.
+      - generic [ref=e287]:
+        - generic [ref=e288]: "03"
+        - generic [ref=e289]: 600+ city database
+        - paragraph [ref=e290]: Searchable, always-updated database of STR laws for over 600 US cities. Pre-investment market scans included.
+      - generic [ref=e291]:
+        - generic [ref=e292]: "04"
+        - generic [ref=e293]: AI compliance checklist
+        - paragraph [ref=e294]: For every regulation change, an AI-generated step-by-step action list — specific to your market and situation.
+      - generic [ref=e295]:
+        - generic [ref=e296]: "05"
+        - generic [ref=e297]: Multi-market portfolio
+        - paragraph [ref=e298]: Manage 1 property or 100. Each gets its own compliance dashboard. Pro tier supports unlimited markets.
+      - generic [ref=e299]:
+        - generic [ref=e300]: "06"
+        - generic [ref=e301]: Pre-investment scans
+        - paragraph [ref=e302]: Researching a new market? Pull a full regulation snapshot before you buy. Know the risk before it's your risk.
+  - generic [ref=e303]:
+    - generic [ref=e304]: What hosts are saying
+    - heading "The problem is real. We've seen the threads." [level=2] [ref=e305]:
+      - text: The problem is real.
+      - text: We've seen the threads.
+    - generic [ref=e306]:
+      - generic [ref=e307]: Beta open in
+      - generic [ref=e308]:
+        - generic [ref=e309]: Nashville, TN
+        - generic [ref=e310]: Austin, TX
+        - generic [ref=e311]: Denver, CO
+        - generic [ref=e312]: Scottsdale, AZ
+        - generic [ref=e313]: Palm Springs, CA
+    - generic [ref=e314]:
+      - generic [ref=e315]:
+        - generic [ref=e316]: BiggerPockets · STR Forum
+        - paragraph [ref=e317]: "\"Just got a $500/day fine in Nashville because my Type 2 permit lapsed and I had no idea the renewal window had changed. Found out from my property manager after it was already too late.\""
+        - generic [ref=e318]: Nashville host · 4 properties
+      - generic [ref=e319]:
+        - generic [ref=e320]: Reddit · r/airbnb
+        - paragraph [ref=e321]: "\"Austin's July 1 platform enforcement deadline snuck up on me completely. I'm scrambling to get licensed right now. I wish I'd known about this 6 months ago.\""
+        - generic [ref=e322]: Austin host · STR investor
+      - generic [ref=e323]:
+        - generic [ref=e324]: Facebook · Denver STR Hosts
+        - paragraph [ref=e325]: "\"Does anyone actually have a system for tracking regulation changes? I'm using Google Alerts and it's basically useless. Missed the new night cap ordinance entirely.\""
+        - generic [ref=e326]: Denver host · 7 properties
+  - generic [ref=e328]:
+    - generic [ref=e329]: Pricing
+    - heading "Cheaper than one missed deadline." [level=2] [ref=e330]
+    - paragraph [ref=e331]: Start with a 45-day free Pro trial. No credit card required.
+    - generic [ref=e332]:
+      - generic [ref=e333]:
+        - generic [ref=e334]:
+          - generic [ref=e335]: Free
+          - generic [ref=e336]: $0
+          - generic [ref=e337]: forever
+        - generic [ref=e338]:
+          - list [ref=e339]:
+            - listitem [ref=e340]:
+              - generic [ref=e341]: ✓
+              - text: 1 city tracked
+            - listitem [ref=e342]:
+              - generic [ref=e343]: ✓
+              - text: Weekly regulation digest
+            - listitem [ref=e344]:
+              - generic [ref=e345]: ✓
+              - text: Basic regulation database
+            - listitem [ref=e346]:
+              - generic [ref=e347]: ✓
+              - text: Email alerts (weekly)
+          - generic [ref=e348] [cursor=pointer]: Join waitlist
+      - generic [ref=e349]:
+        - generic [ref=e350]:
+          - generic [ref=e351]: 45-day free trial
+          - generic [ref=e352]: Pro
+          - generic [ref=e353]: $0
+          - generic [ref=e354]: for 45 days · then $29/mo · no credit card required
+        - generic [ref=e355]:
+          - list [ref=e356]:
+            - listitem [ref=e357]:
+              - generic [ref=e358]: ✓
+              - text: Unlimited cities & properties
+            - listitem [ref=e359]:
+              - generic [ref=e360]: ✓
+              - text: Real-time alerts (48hr SLA)
+            - listitem [ref=e361]:
+              - generic [ref=e362]: ✓
+              - text: Email + SMS notifications
+            - listitem [ref=e363]:
+              - generic [ref=e364]: ✓
+              - text: Permit deadline tracker
+            - listitem [ref=e365]:
+              - generic [ref=e366]: ✓
+              - text: AI compliance checklists
+            - listitem [ref=e367]:
+              - generic [ref=e368]: ✓
+              - text: Pre-investment market scans
+            - listitem [ref=e369]:
+              - generic [ref=e370]: ✓
+              - text: Priority support
+          - link "Start free trial" [ref=e371] [cursor=pointer]:
+            - /url: https://app.strwatch.io/sign-up
+      - generic [ref=e372]:
+        - generic [ref=e373]:
+          - generic [ref=e374]: Agency
+          - generic [ref=e375]: $99
+          - generic [ref=e376]: per month
+        - generic [ref=e377]:
+          - list [ref=e378]:
+            - listitem [ref=e379]:
+              - generic [ref=e380]: ✓
+              - text: Everything in Pro
+            - listitem [ref=e381]:
+              - generic [ref=e382]: ✓
+              - text: White-label reports
+            - listitem [ref=e383]:
+              - generic [ref=e384]: ✓
+              - text: Client portfolio management
+            - listitem [ref=e385]:
+              - generic [ref=e386]: ✓
+              - text: API access
+            - listitem [ref=e387]:
+              - generic [ref=e388]: ✓
+              - text: Dedicated account manager
+          - generic [ref=e389] [cursor=pointer]: Join waitlist
+  - generic [ref=e390]:
+    - heading "Stop Googling. Start knowing." [level=2] [ref=e391]:
+      - text: Stop Googling.
+      - emphasis [ref=e392]: Start knowing.
+    - paragraph [ref=e393]: Try Pro free for 45 days. No credit card required. $29/mo after that — cancel anytime.
+    - generic [ref=e394]:
+      - textbox "your@email.com" [ref=e395]
+      - button "Join waitlist" [ref=e396] [cursor=pointer]
+  - contentinfo [ref=e397]:
+    - generic [ref=e398]: STRWatch
+    - generic [ref=e399]:
+      - link "Terms of Service" [ref=e400] [cursor=pointer]:
+        - /url: /terms.html
+      - link "Privacy Policy" [ref=e401] [cursor=pointer]:
+        - /url: /privacy.html
+      - generic [ref=e402]: © 2026 STRWatch
+```
