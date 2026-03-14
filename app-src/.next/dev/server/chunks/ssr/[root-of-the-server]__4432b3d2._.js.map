@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 18, "column": 0}, "map": {"version":3,"sources":["file:///Users/sidereas/projects/strwatch-app/app-src/src/app/%28auth%29/sign-in/%5B%5B...sign-in%5D%5D/page.tsx"],"sourcesContent":["import { SignIn } from '@clerk/nextjs'\n\nexport default function SignInPage() {\n  return (\n    <div className=\"min-h-screen flex items-center justify-center bg-[var(--off-white)]\">\n      <SignIn />\n    </div>\n  )\n}\n"],"names":[],"mappings":";;;;;AAAA;;;AAEe,SAAS;IACtB,qBACE,8OAAC;QAAI,WAAU;kBACb,cAAA,8OAAC,gMAAM;;;;;;;;;;AAGb"}}]
+}

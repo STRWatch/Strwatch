@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 18, "column": 0}, "map": {"version":3,"sources":["file:///Users/sidereas/projects/strwatch-app/app-src/src/app/page.tsx"],"sourcesContent":["import { redirect } from 'next/navigation'\nimport { auth } from '@clerk/nextjs/server'\n\nexport default async function RootPage() {\n  const { userId } = await auth()\n  if (userId) {\n    redirect('/dashboard')\n  } else {\n    redirect('/sign-in')\n  }\n}\n"],"names":[],"mappings":";;;;AAAA;AAAA;AACA;;;AAEe,eAAe;IAC5B,MAAM,EAAE,MAAM,EAAE,GAAG,MAAM,IAAA,2LAAI;IAC7B,IAAI,QAAQ;QACV,IAAA,iMAAQ,EAAC;IACX,OAAO;QACL,IAAA,iMAAQ,EAAC;IACX;AACF"}}]
+}
