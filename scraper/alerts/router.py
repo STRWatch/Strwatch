@@ -9,6 +9,8 @@ import os
 import logging
 import requests
 from typing import List, Optional
+from dotenv import load_dotenv
+load_dotenv()
 
 log = logging.getLogger(__name__)
 

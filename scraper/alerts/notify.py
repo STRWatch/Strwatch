@@ -101,6 +101,7 @@ def alert_page_changed(name: str, city: str, url: str, priority: str):
 
     store.record_alert(key, "page_changed", city, f"{name} changed")
     log.info("Alert sent: page_changed for %s", name)
+    route_page_change_alert(city, name, url, priority)
 
 
 def alert_denver_new_licenses(new_records: List[dict]):
@@ -247,6 +248,7 @@ def alert_new_legislation(city: str, bill_id: str, title: str, url: str, keyword
     send_sms(sms)
     store.record_alert(key, "legislation", city, f"{bill_id}: {title}")
     log.info("Alert sent: new legislation %s %s", city, bill_id)
+    route_legislation_alert(city, title, url, keywords)
 
 
 def alert_austin_new_licenses(licenses: list):
@@ -277,3 +279,35 @@ def alert_scottsdale_new_licenses(licenses: list):
     subject = f"[STRWatch] Scottsdale: {count} new STR license(s) detected"
     text = f"{count} new Scottsdale STR license(s). $250/yr fee, $1,000/violation enforcement."
     send_email(subject, f"<p>{text}</p>", text)
+
+
+# ── Alert routing (calls router.send_city_alert for real user emails) ─────────
+
+def route_legislation_alert(city: str, title: str, url: str, keywords: list):
+    try:
+        from alerts import router
+        router.send_city_alert(
+            city=city,
+            subject=f"{city} — new STR legislation detected",
+            headline=title,
+            detail=f"STRWatch detected new STR-related legislation in {city}. Keywords matched: {', '.join(keywords[:3])}.",
+            source_url=url,
+            urgency="high",
+        )
+    except Exception as e:
+        log.error("Alert routing failed: %s", e)
+
+
+def route_page_change_alert(city: str, name: str, url: str, priority: str):
+    try:
+        from alerts import router
+        router.send_city_alert(
+            city=city,
+            subject=f"{city} — regulation page updated",
+            headline=f"{name} has been updated",
+            detail=f"STRWatch detected a change on a monitored government page in {city}. Review the source for regulation updates.",
+            source_url=url,
+            urgency=priority,
+        )
+    except Exception as e:
+        log.error("Alert routing failed: %s", e)
