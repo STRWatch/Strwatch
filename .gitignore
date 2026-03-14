@@ -41,3 +41,7 @@ yarn-error.log*
 next-env.d.ts
 app-src/node_modules/
 node_modules/
+scraper/data/
+scraper/.env
+scraper/logs/
+scraper/**/__pycache__/
