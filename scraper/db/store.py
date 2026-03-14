@@ -336,3 +336,12 @@ def get_scottsdale_license_stats() -> dict:
     conn = get_conn()
     total = conn.execute("SELECT COUNT(*) FROM scottsdale_licenses").fetchone()[0]
     return {"total": total, "active": total}
+
+
+def get_last_scottsdale_sync() -> str:
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT MAX(last_updated) FROM scottsdale_licenses").fetchone()
+        return row[0] if row and row[0] else None
+    except Exception:
+        return None

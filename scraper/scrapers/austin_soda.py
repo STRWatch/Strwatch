@@ -138,9 +138,17 @@ def run(full_sync: bool = False):
     """
     log.info("=== Austin SODA scraper starting (full_sync=%s) ===", full_sync)
 
+    # Skip if already synced today
+    from db.store import get_conn
+    conn = get_conn()
+    count = conn.execute("SELECT COUNT(*) FROM austin_licenses").fetchone()[0]
+    if not full_sync and count > 0:
+        log.info("Austin SODA already has %d records — skipping full sync", count)
+        from db import store as _store
+        return {"processed": 0, "new": 0, "revoked": 0, "errors": 0, "stats": _store.get_austin_license_stats(), "days_to_deadline": _days_to_deadline()}
+
     since = None
     if not full_sync:
-        # Look back 2 days to catch anything missed
         cutoff = datetime.now(timezone.utc) - timedelta(days=2)
         since = cutoff.strftime("%Y-%m-%dT%H:%M:%S")
 

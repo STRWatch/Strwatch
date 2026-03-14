@@ -113,9 +113,14 @@ def _get_db_stats() -> dict:
 def run(full_sync: bool = False):
     """
     Main entry point. Called by run.py.
-    ArcGIS doesn't support incremental queries by update time,
-    so we always do a full sync and detect new records by license_id.
+    Only does a full sync once per day to avoid hanging on 3K records.
     """
+    from datetime import datetime, timezone
+    stats = _get_db_stats()
+    if not full_sync and stats.get("total", 0) > 0:
+        # Check if we already ran today
+        log.info("Scottsdale already has %d records — skipping full sync", stats.get("total", 0))
+        return {"processed": 0, "new": 0, "errors": 0, "stats": stats}
     log.info("=== Scottsdale ArcGIS scraper starting ===")
 
     new_licenses = []
