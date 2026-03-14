@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   }
   const supabase = createClient()
   if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.CheckoutSession
+    const session = event.data.object as any
     const userId = session.metadata?.userId
     const tier = session.metadata?.tier
     if (userId && tier) {
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     }
   }
   if (event.type === 'customer.subscription.deleted') {
-    const sub = event.data.object as Stripe.Subscription
+    const sub = event.data.object as any
     const userId = sub.metadata?.userId
     if (userId) {
       await supabase.from('user_tiers').upsert(
