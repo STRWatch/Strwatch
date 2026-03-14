@@ -23,6 +23,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </Link>
           <Link href="/dashboard" style={{fontSize:'0.875rem', color:'#6b7280', textDecoration:'none'}}>Overview</Link>
           <Link href="/dashboard/markets" style={{fontSize:'0.875rem', color:'#6b7280', textDecoration:'none'}}>Markets</Link>
+          <Link href="/dashboard/deadlines" style={{fontSize:'0.875rem', color:'#6b7280', textDecoration:'none'}}>Deadlines</Link>
           <Link href="/dashboard/alerts" style={{fontSize:'0.875rem', color:'#6b7280', textDecoration:'none'}}>Alerts</Link>
         </div>
         <UserButton />

@@ -3,14 +3,20 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 
-const AUSTIN_DEADLINE = new Date('2026-07-01')
-function daysToDeadline() {
-  return Math.max(0, Math.ceil((AUSTIN_DEADLINE.getTime() - Date.now()) / 86400000))
-}
 const URGENCY_COLORS: Record<string, {bg:string;border:string;text:string}> = {
   high:   {bg:'#fff0ee',border:'#f7c8c8',text:'#b84040'},
   medium: {bg:'#fdf3e3',border:'#f5d9a0',text:'#b87d2d'},
   low:    {bg:'#e8f5ee',border:'#c8ecd8',text:'#2d7a4f'},
+}
+
+function getDeadlineUrgency(dateStr: string): {label:string;bg:string;border:string;text:string;days:number} {
+  const now = new Date()
+  const deadline = new Date(dateStr + 'T00:00:00')
+  const days = Math.ceil((deadline.getTime() - now.getTime()) / 86400000)
+  if (days < 0) return {label:`${Math.abs(days)}d overdue`,bg:'#fff0ee',border:'#f7c8c8',text:'#b84040',days}
+  if (days <= 30) return {label:`${days}d left`,bg:'#fff0ee',border:'#f7c8c8',text:'#b84040',days}
+  if (days <= 90) return {label:`${days}d left`,bg:'#fdf3e3',border:'#f5d9a0',text:'#b87d2d',days}
+  return {label:`${days}d left`,bg:'#e8f5ee',border:'#c8ecd8',text:'#2d7a4f',days}
 }
 
 const TRIAL_DAYS = 45
@@ -20,7 +26,7 @@ export default async function DashboardPage() {
   if (!userId) redirect('/sign-in')
   const supabase = createClient()
 
-  // Check/create tier (same logic as markets page)
+  // Check/create tier
   const { data: tierData } = await supabase
     .from('user_tiers')
     .select('tier, trial_ends_at')
@@ -56,7 +62,6 @@ export default async function DashboardPage() {
     }).eq('user_id', userId)
   }
 
-  const effectiveTier = isTrialExpired ? 'free' : (currentTier?.tier || 'free')
   const trialDaysLeft = isTrialActive && trialEndsAt
     ? Math.ceil((trialEndsAt.getTime() - now.getTime()) / 86400000)
     : 0
@@ -66,7 +71,25 @@ export default async function DashboardPage() {
   const thisMonth = new Date(); thisMonth.setDate(1); thisMonth.setHours(0,0,0,0)
   const alertsThisMonth = (alerts||[]).filter(a => new Date(a.sent_at) >= thisMonth).length
   const marketCount = (markets||[]).length
-  const days = daysToDeadline()
+  const userCities = (markets || []).map((m: {city:string}) => m.city)
+
+  // Fetch deadlines for user's markets
+  let deadlines: any[] = []
+  if (userCities.length > 0) {
+    const { data } = await supabase
+      .from('deadlines')
+      .select('*')
+      .in('city', userCities)
+      .order('deadline_date', { ascending: true })
+      .limit(20)
+    deadlines = data || []
+  }
+
+  // Find the nearest deadline for the stats card
+  const nextDeadline = deadlines.length > 0 ? deadlines[0] : null
+  const nextDeadlineDays = nextDeadline
+    ? Math.max(0, Math.ceil((new Date(nextDeadline.deadline_date + 'T00:00:00').getTime() - Date.now()) / 86400000))
+    : null
 
   return (
     <div>
@@ -89,7 +112,7 @@ export default async function DashboardPage() {
       {isTrialExpired && (
         <div style={{marginBottom:'20px',padding:'12px 16px',background:'#fdf3e3',border:'1.5px solid #f5d9a0',borderRadius:'8px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
           <span style={{fontFamily:'monospace',fontSize:'0.65rem',letterSpacing:'0.08em',color:'#b87d2d'}}>
-            PRO TRIAL ENDED · You're on the free plan (1 market). Upgrade to keep unlimited access.
+            PRO TRIAL ENDED · You&apos;re on the free plan (1 market). Upgrade to keep unlimited access.
           </span>
           <Link href="/dashboard/markets" style={{fontFamily:'monospace',fontSize:'0.6rem',letterSpacing:'0.08em',color:'#1a4d2e',fontWeight:700,textDecoration:'none'}}>
             Upgrade →
@@ -97,6 +120,7 @@ export default async function DashboardPage() {
         </div>
       )}
 
+      {/* Stats grid */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'16px',marginBottom:'32px'}}>
         <div style={{background:'white',border:'1.5px solid var(--border)',borderRadius:'12px',padding:'20px'}}>
           <div style={{fontSize:'2rem',fontWeight:800,color:'var(--ink)',lineHeight:1,marginBottom:'8px'}}>{marketCount > 0 ? marketCount : '—'}</div>
@@ -109,10 +133,37 @@ export default async function DashboardPage() {
           <div style={{fontSize:'0.7rem',color:'var(--text-faint)',textTransform:'uppercase',letterSpacing:'0.1em'}}>Alerts this month</div>
         </div>
         <div style={{background:'var(--green-pale)',border:'1.5px solid var(--green-light)',borderRadius:'12px',padding:'20px'}}>
-          <div style={{fontSize:'2rem',fontWeight:800,color:'var(--green-deep)',lineHeight:1,marginBottom:'8px'}}>{days}</div>
-          <div style={{fontSize:'0.7rem',color:'var(--green)',textTransform:'uppercase',letterSpacing:'0.1em'}}>Days to Austin deadline</div>
+          <div style={{fontSize:'2rem',fontWeight:800,color:'var(--green-deep)',lineHeight:1,marginBottom:'8px'}}>{nextDeadlineDays !== null ? nextDeadlineDays : '—'}</div>
+          <div style={{fontSize:'0.7rem',color:'var(--green)',textTransform:'uppercase',letterSpacing:'0.1em'}}>
+            {nextDeadline ? <>Days to next deadline · <Link href="/dashboard/deadlines" style={{color:'var(--green)'}}>View all →</Link></> : 'No deadlines'}
+          </div>
         </div>
       </div>
+
+      {/* Upcoming deadlines */}
+      {deadlines.length > 0 && (
+        <div style={{background:'white',border:'1.5px solid var(--border)',borderRadius:'12px',overflow:'hidden',marginBottom:'32px'}}>
+          <div style={{padding:'16px 20px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <span style={{fontFamily:'var(--font-syne)',fontWeight:700,fontSize:'0.95rem',color:'var(--ink)'}}>Upcoming Deadlines</span>
+            <Link href="/dashboard/deadlines" style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--green)'}}>View all →</Link>
+          </div>
+          {deadlines.slice(0, 4).map((d: any) => {
+            const u = getDeadlineUrgency(d.deadline_date)
+            const dateStr = new Date(d.deadline_date + 'T00:00:00').toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'})
+            return (
+              <div key={d.id} style={{padding:'14px 20px',borderBottom:'1px solid var(--border)',display:'flex',gap:'12px',alignItems:'flex-start'}}>
+                <span style={{display:'inline-block',background:u.bg,border:`1px solid ${u.border}`,color:u.text,fontSize:'0.58rem',letterSpacing:'0.1em',textTransform:'uppercase',padding:'3px 8px',borderRadius:'100px',whiteSpace:'nowrap',marginTop:'2px'}}>{u.label}</span>
+                <div style={{flex:1}}>
+                  <div style={{fontFamily:'var(--font-syne)',fontWeight:600,fontSize:'0.88rem',color:'var(--ink)',marginBottom:'2px'}}>{d.title}</div>
+                  <div style={{fontFamily:'var(--font-mono)',fontSize:'0.58rem',color:'var(--text-faint)',letterSpacing:'0.05em'}}>{d.city} · {dateStr}</div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Recent alerts */}
       <div style={{background:'white',border:'1.5px solid var(--border)',borderRadius:'12px',overflow:'hidden'}}>
         <div style={{padding:'16px 20px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
           <span style={{fontFamily:'var(--font-syne)',fontWeight:700,fontSize:'0.95rem',color:'var(--ink)'}}>Recent Alerts</span>
