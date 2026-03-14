@@ -25,7 +25,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Link href="/dashboard/markets" style={{fontSize:'0.875rem', color:'#6b7280', textDecoration:'none'}}>Markets</Link>
           <Link href="/dashboard/alerts" style={{fontSize:'0.875rem', color:'#6b7280', textDecoration:'none'}}>Alerts</Link>
         </div>
-        <UserButton afterSignOutUrl="/sign-in" />
+        <UserButton />
       </nav>
       <main style={{paddingTop:'80px', padding:'80px 32px 32px', maxWidth:'960px', margin:'0 auto'}}>
         {children}

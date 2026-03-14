@@ -1,0 +1,65 @@
+{
+  "node": {
+    "00c390934226513b0d6195880ca6560979b44e202c": {
+      "workers": {
+        "app/_not-found/page": {
+          "moduleId": 9101,
+          "async": false,
+          "exportedName": "invalidateCacheAction",
+          "filename": "node_modules/@clerk/nextjs/dist/esm/app-router/server-actions.js"
+        }
+      },
+      "layer": {
+        "app/_not-found/page": "action-browser"
+      },
+      "exportedName": "invalidateCacheAction",
+      "filename": "node_modules/@clerk/nextjs/dist/esm/app-router/server-actions.js"
+    },
+    "00dad540b468af2a1b4180adbaf11939e00262778b": {
+      "workers": {
+        "app/_not-found/page": {
+          "moduleId": 9101,
+          "async": false,
+          "exportedName": "createOrReadKeylessAction",
+          "filename": "node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js"
+        }
+      },
+      "layer": {
+        "app/_not-found/page": "rsc"
+      },
+      "exportedName": "createOrReadKeylessAction",
+      "filename": "node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js"
+    },
+    "0006fbdb2e3ebfd190a1f3924739808fe7ccc5d997": {
+      "workers": {
+        "app/_not-found/page": {
+          "moduleId": 9101,
+          "async": false,
+          "exportedName": "deleteKeylessAction",
+          "filename": "node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js"
+        }
+      },
+      "layer": {
+        "app/_not-found/page": "action-browser"
+      },
+      "exportedName": "deleteKeylessAction",
+      "filename": "node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js"
+    },
+    "40e3441362b81924cbd3f7dd7a149f740d78ff1257": {
+      "workers": {
+        "app/_not-found/page": {
+          "moduleId": 9101,
+          "async": false,
+          "exportedName": "syncKeylessConfigAction",
+          "filename": "node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js"
+        }
+      },
+      "layer": {
+        "app/_not-found/page": "action-browser"
+      },
+      "exportedName": "syncKeylessConfigAction",
+      "filename": "node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js"
+    }
+  },
+  "edge": {}
+}

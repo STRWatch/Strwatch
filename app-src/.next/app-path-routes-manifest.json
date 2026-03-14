@@ -1,0 +1,11 @@
+{
+  "/(auth)/sign-in/[[...sign-in]]/page": "/sign-in/[[...sign-in]]",
+  "/(auth)/sign-up/[[...sign-up]]/page": "/sign-up/[[...sign-up]]",
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/dashboard/alerts/page": "/dashboard/alerts",
+  "/dashboard/markets/page": "/dashboard/markets",
+  "/dashboard/page": "/dashboard",
+  "/favicon.ico/route": "/favicon.ico",
+  "/page": "/"
+}
