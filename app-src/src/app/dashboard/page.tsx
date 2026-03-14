@@ -13,10 +13,54 @@ const URGENCY_COLORS: Record<string, {bg:string;border:string;text:string}> = {
   low:    {bg:'#e8f5ee',border:'#c8ecd8',text:'#2d7a4f'},
 }
 
+const TRIAL_DAYS = 45
+
 export default async function DashboardPage() {
   const { userId } = await auth()
   if (!userId) redirect('/sign-in')
   const supabase = createClient()
+
+  // Check/create tier (same logic as markets page)
+  const { data: tierData } = await supabase
+    .from('user_tiers')
+    .select('tier, trial_ends_at')
+    .eq('user_id', userId)
+    .single()
+
+  if (!tierData) {
+    const trialEnd = new Date()
+    trialEnd.setDate(trialEnd.getDate() + TRIAL_DAYS)
+    await supabase.from('user_tiers').insert({
+      user_id: userId,
+      tier: 'pro',
+      trial_ends_at: trialEnd.toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+  }
+
+  const { data: currentTier } = await supabase
+    .from('user_tiers')
+    .select('tier, trial_ends_at')
+    .eq('user_id', userId)
+    .single()
+
+  const now = new Date()
+  const trialEndsAt = currentTier?.trial_ends_at ? new Date(currentTier.trial_ends_at) : null
+  const isTrialActive = trialEndsAt && trialEndsAt > now && currentTier?.tier === 'pro'
+  const isTrialExpired = trialEndsAt && trialEndsAt <= now && currentTier?.tier === 'pro'
+
+  if (isTrialExpired) {
+    await supabase.from('user_tiers').update({
+      tier: 'free',
+      updated_at: new Date().toISOString(),
+    }).eq('user_id', userId)
+  }
+
+  const effectiveTier = isTrialExpired ? 'free' : (currentTier?.tier || 'free')
+  const trialDaysLeft = isTrialActive && trialEndsAt
+    ? Math.ceil((trialEndsAt.getTime() - now.getTime()) / 86400000)
+    : 0
+
   const { data: markets } = await supabase.from('user_markets').select('city').eq('user_id', userId)
   const { data: alerts } = await supabase.from('alerts').select('*').eq('user_id', userId).order('sent_at', {ascending:false}).limit(10)
   const thisMonth = new Date(); thisMonth.setDate(1); thisMonth.setHours(0,0,0,0)
@@ -28,6 +72,31 @@ export default async function DashboardPage() {
     <div>
       <h1 style={{fontFamily:'var(--font-syne)',fontWeight:800,fontSize:'1.6rem',color:'var(--ink)',marginBottom:'4px',letterSpacing:'-0.02em'}}>Compliance Overview</h1>
       <p style={{fontSize:'0.875rem',color:'var(--text-muted)',marginBottom:'32px'}}>Your markets, recent alerts, and upcoming deadlines.</p>
+
+      {/* Trial banner */}
+      {isTrialActive && (
+        <div style={{marginBottom:'20px',padding:'12px 16px',background:'#e8f5ee',border:'1.5px solid #c8ecd8',borderRadius:'8px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <span style={{fontFamily:'monospace',fontSize:'0.65rem',letterSpacing:'0.08em',color:'#2d7a4f'}}>
+            PRO TRIAL · <strong>{trialDaysLeft} day{trialDaysLeft !== 1 ? 's' : ''} remaining</strong> · Unlimited markets & real-time alerts
+          </span>
+          <Link href="/dashboard/markets" style={{fontFamily:'monospace',fontSize:'0.6rem',letterSpacing:'0.08em',color:'#1a4d2e',fontWeight:700,textDecoration:'none'}}>
+            Lock $29/mo →
+          </Link>
+        </div>
+      )}
+
+      {/* Expired trial banner */}
+      {isTrialExpired && (
+        <div style={{marginBottom:'20px',padding:'12px 16px',background:'#fdf3e3',border:'1.5px solid #f5d9a0',borderRadius:'8px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <span style={{fontFamily:'monospace',fontSize:'0.65rem',letterSpacing:'0.08em',color:'#b87d2d'}}>
+            PRO TRIAL ENDED · You're on the free plan (1 market). Upgrade to keep unlimited access.
+          </span>
+          <Link href="/dashboard/markets" style={{fontFamily:'monospace',fontSize:'0.6rem',letterSpacing:'0.08em',color:'#1a4d2e',fontWeight:700,textDecoration:'none'}}>
+            Upgrade →
+          </Link>
+        </div>
+      )}
+
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'16px',marginBottom:'32px'}}>
         <div style={{background:'white',border:'1.5px solid var(--border)',borderRadius:'12px',padding:'20px'}}>
           <div style={{fontSize:'2rem',fontWeight:800,color:'var(--ink)',lineHeight:1,marginBottom:'8px'}}>{marketCount > 0 ? marketCount : '—'}</div>

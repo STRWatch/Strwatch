@@ -12,9 +12,10 @@ const AVAILABLE_MARKETS = [
 ]
 
 export default function MarketsClient({
-  userId, savedCities, tier, maxMarkets,
+  userId, savedCities, tier, maxMarkets, trialDaysLeft, isTrialActive, isPaid,
 }: {
-  userId: string; savedCities: string[]; tier: string; maxMarkets: number
+  userId: string; savedCities: string[]; tier: string; maxMarkets: number;
+  trialDaysLeft: number; isTrialActive: boolean; isPaid: boolean;
 }) {
   const [cities, setCities] = useState<string[]>(savedCities)
   const [isPending, startTransition] = useTransition()
@@ -64,13 +65,26 @@ export default function MarketsClient({
         Select the cities where you have properties. You'll receive alerts when regulations change.
       </p>
 
+      {/* Trial active banner */}
+      {isTrialActive && !isPaid && (
+        <div style={{marginBottom:'1.5rem',padding:'12px 16px',background:'#e8f5ee',border:'1.5px solid #c8ecd8',borderRadius:'8px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'12px'}}>
+          <span style={{fontFamily:'var(--font-mono)',fontSize:'0.62rem',letterSpacing:'0.08em',color:'#2d7a4f'}}>
+            PRO TRIAL · <strong>{trialDaysLeft} day{trialDaysLeft !== 1 ? 's' : ''} remaining</strong> · Unlimited markets & real-time alerts
+          </span>
+          <button onClick={handleUpgrade} style={{fontFamily:'var(--font-syne)',fontWeight:700,fontSize:'0.72rem',padding:'6px 14px',background:'#1a4d2e',color:'white',borderRadius:'6px',border:'none',cursor:'pointer',whiteSpace:'nowrap'}}>
+            Lock $29/mo →
+          </button>
+        </div>
+      )}
+
+      {/* Free tier banner (trial expired or never had trial) */}
       {isFree && (
         <div style={{marginBottom:'1.5rem',padding:'12px 16px',background:'#fdf3e3',border:'1.5px solid #f5d9a0',borderRadius:'8px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'12px'}}>
           <span style={{fontFamily:'var(--font-mono)',fontSize:'0.62rem',letterSpacing:'0.08em',color:'#b87d2d'}}>
             FREE PLAN · 1 market max · <strong>Upgrade to Pro</strong> for unlimited markets + real-time alerts
           </span>
           <button onClick={handleUpgrade} style={{fontFamily:'var(--font-syne)',fontWeight:700,fontSize:'0.72rem',padding:'6px 14px',background:'#1a4d2e',color:'white',borderRadius:'6px',border:'none',cursor:'pointer',whiteSpace:'nowrap'}}>
-            Upgrade →
+            Upgrade — $29/mo →
           </button>
         </div>
       )}
@@ -89,7 +103,7 @@ export default function MarketsClient({
                   {feedback?.city === city && <span style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',color:feedback.msg.includes('Upgrade') ? '#b87d2d' : 'var(--green)',letterSpacing:'0.05em'}}>{feedback.msg}</span>}
                 </div>
                 <button onClick={() => handleRemove(city)} disabled={isPending}
-                  style={{fontFamily:'var(--font-mono)',fontSize:'0.58rem',letterSpacing:'0.1em',textTransform:'uppercase',color:isFree ? 'var(--text-faint)' : 'var(--text-faint)',background:'none',border:'none',cursor:isFree ? 'not-allowed' : 'pointer',padding:'4px 8px',opacity:isFree ? 0.5 : 1}}
+                  style={{fontFamily:'var(--font-mono)',fontSize:'0.58rem',letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text-faint)',background:'none',border:'none',cursor:isFree ? 'not-allowed' : 'pointer',padding:'4px 8px',opacity:isFree ? 0.5 : 1}}
                   title={isFree ? 'Upgrade to change markets' : 'Remove market'}>
                   {isFree ? 'Locked' : 'Remove'}
                 </button>

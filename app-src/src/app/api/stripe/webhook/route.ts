@@ -19,8 +19,14 @@ export async function POST(req: NextRequest) {
     const userId = session.metadata?.userId
     const tier = session.metadata?.tier
     if (userId && tier) {
+      // Clear trial_ends_at so user is recognized as paid, not trial
       await supabase.from('user_tiers').upsert(
-        { user_id: userId, tier, updated_at: new Date().toISOString() },
+        {
+          user_id: userId,
+          tier,
+          trial_ends_at: null,
+          updated_at: new Date().toISOString(),
+        },
         { onConflict: 'user_id' }
       )
     }
@@ -30,7 +36,7 @@ export async function POST(req: NextRequest) {
     const userId = sub.metadata?.userId
     if (userId) {
       await supabase.from('user_tiers').upsert(
-        { user_id: userId, tier: 'free', updated_at: new Date().toISOString() },
+        { user_id: userId, tier: 'free', trial_ends_at: null, updated_at: new Date().toISOString() },
         { onConflict: 'user_id' }
       )
     }
