@@ -26,6 +26,7 @@ export default async function AlertsPage() {
         ) : alerts.map((alert:any, i:number) => {
           const c = URGENCY_COLORS[alert.urgency]||URGENCY_COLORS.medium
           const date = new Date(alert.sent_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})
+          const hasChecklist = alert.checklist && alert.checklist.trim().length > 0
           return (
             <div key={alert.id} style={{padding:'20px',borderBottom:i<alerts.length-1?'1px solid var(--border)':'none'}}>
               <div style={{display:'flex',alignItems:'flex-start',gap:'12px'}}>
@@ -34,6 +35,12 @@ export default async function AlertsPage() {
                   <div style={{fontFamily:'var(--font-syne)',fontWeight:700,fontSize:'0.95rem',color:'var(--ink)',marginBottom:'4px'}}>{alert.headline}</div>
                   <div style={{fontFamily:'var(--font-mono)',fontSize:'0.58rem',color:'var(--text-faint)',letterSpacing:'0.05em',marginBottom:'8px'}}>{alert.city} · {date}</div>
                   {alert.detail && <div style={{fontSize:'0.82rem',color:'var(--text-mid)',lineHeight:1.6,background:'var(--off-white)',border:'1px solid var(--border)',borderRadius:'6px',padding:'10px 12px',marginBottom:'8px'}}>{alert.detail}</div>}
+                  {hasChecklist && (
+                    <div
+                      style={{marginBottom:'8px'}}
+                      dangerouslySetInnerHTML={{__html: alert.checklist}}
+                    />
+                  )}
                   {alert.source_url && <a href={alert.source_url} target="_blank" rel="noopener noreferrer" style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',color:'var(--green)',letterSpacing:'0.05em'}}>View source →</a>}
                 </div>
               </div>

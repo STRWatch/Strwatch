@@ -2,6 +2,7 @@
 alerts/notify.py — Send email (Resend) and SMS (Twilio) alerts.
 
 Includes dedup: won't send the same alert_key twice.
+Includes AI checklist generation for legislation and page-change alerts.
 """
 
 from typing import List
@@ -63,12 +64,43 @@ def send_sms(message: str) -> bool:
         return False
 
 
+def _generate_checklist_safe(city: str, title: str, keywords: list,
+                              source_url: str, alert_type: str) -> dict:
+    """Generate AI checklist, returning empty dict on failure."""
+    try:
+        from alerts.checklist import generate_checklist
+        result = generate_checklist(
+            city=city,
+            title=title,
+            keywords=keywords,
+            source_url=source_url,
+            alert_type=alert_type,
+        )
+        return result or {}
+    except Exception as e:
+        log.error("Checklist generation error: %s", e)
+        return {}
+
+
 # ── Alert builders ────────────────────────────────────────────────────────────
 
 def alert_page_changed(name: str, city: str, url: str, priority: str):
     key = _make_key("page_changed", url, datetime.utcnow().strftime("%Y-%m-%d"))
     if store.already_alerted(key):
         return
+
+    # Generate AI checklist for page changes
+    checklist = _generate_checklist_safe(
+        city=city,
+        title=f"{name} — government STR page updated",
+        keywords=["regulation change", "STR", "permit"],
+        source_url=url,
+        alert_type="page_change",
+    )
+    checklist_html = ""
+    if checklist:
+        from alerts.checklist import format_checklist_html
+        checklist_html = format_checklist_html(checklist)
 
     subject = f"[STRWatch] {city} regulation page changed — {name}"
     urgency = "🚨 HIGH PRIORITY" if priority == "high" else "ℹ️"
@@ -88,11 +120,15 @@ def alert_page_changed(name: str, city: str, url: str, priority: str):
           </a>
         </p>
       </div>
+      {checklist_html}
       <p style="font-size:11px;color:#b8ad9e;margin-top:12px;">STRWatch · Detected {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}</p>
     </div>
     """
 
     text = f"[STRWatch] {city} STR page changed: {name}\n\nReview: {url}\n\nDetected: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}"
+    if checklist and checklist.get("raw_text"):
+        text += f"\n\n{checklist['raw_text']}"
+
     sms = f"[STRWatch] {city}: STR regulation page changed — {name}. Check: {url}"
 
     send_email(subject, html, text)
@@ -101,7 +137,7 @@ def alert_page_changed(name: str, city: str, url: str, priority: str):
 
     store.record_alert(key, "page_changed", city, f"{name} changed")
     log.info("Alert sent: page_changed for %s", name)
-    route_page_change_alert(city, name, url, priority)
+    route_page_change_alert(city, name, url, priority, checklist)
 
 
 def alert_denver_new_licenses(new_records: List[dict]):
@@ -215,6 +251,19 @@ def alert_new_legislation(city: str, bill_id: str, title: str, url: str, keyword
     if store.already_alerted(key):
         return
 
+    # Generate AI checklist
+    checklist = _generate_checklist_safe(
+        city=city,
+        title=title,
+        keywords=keywords,
+        source_url=url,
+        alert_type="legislation",
+    )
+    checklist_html = ""
+    if checklist:
+        from alerts.checklist import format_checklist_html
+        checklist_html = format_checklist_html(checklist)
+
     kw_str = ", ".join(keywords[:5])
     subject = f"[STRWatch] {city}: New STR legislation — {bill_id}"
 
@@ -237,18 +286,22 @@ def alert_new_legislation(city: str, bill_id: str, title: str, url: str, keyword
           </a>
         </p>
       </div>
+      {checklist_html}
       <p style="font-size:11px;color:#b8ad9e;margin-top:12px;">STRWatch · {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}</p>
     </div>
     """
 
     text = f"[STRWatch] {city}: New STR-related legislation\n\nBill: {bill_id}\nTitle: {title}\nKeywords: {kw_str}\n\nView: {url}"
+    if checklist and checklist.get("raw_text"):
+        text += f"\n\n{checklist['raw_text']}"
+
     sms = f"[STRWatch] {city}: New STR bill — {bill_id}: {title[:80]}. View: {url}"
 
     send_email(subject, html, text)
     send_sms(sms)
     store.record_alert(key, "legislation", city, f"{bill_id}: {title}")
     log.info("Alert sent: new legislation %s %s", city, bill_id)
-    route_legislation_alert(city, title, url, keywords)
+    route_legislation_alert(city, title, url, keywords, checklist)
 
 
 def alert_austin_new_licenses(licenses: list):
@@ -283,31 +336,51 @@ def alert_scottsdale_new_licenses(licenses: list):
 
 # ── Alert routing (calls router.send_city_alert for real user emails) ─────────
 
-def route_legislation_alert(city: str, title: str, url: str, keywords: list):
+def route_legislation_alert(city: str, title: str, url: str, keywords: list, checklist: dict = None):
     try:
         from alerts import router
+        checklist_html = ""
+        if checklist:
+            from alerts.checklist import format_checklist_html
+            checklist_html = format_checklist_html(checklist)
+
+        detail = f"STRWatch detected new STR-related legislation in {city}. Keywords matched: {', '.join(keywords[:3])}."
+        if checklist and checklist.get("summary"):
+            detail = checklist["summary"]
+
         router.send_city_alert(
             city=city,
             subject=f"{city} — new STR legislation detected",
             headline=title,
-            detail=f"STRWatch detected new STR-related legislation in {city}. Keywords matched: {', '.join(keywords[:3])}.",
+            detail=detail,
             source_url=url,
-            urgency="high",
+            urgency=checklist.get("urgency", "high") if checklist else "high",
+            checklist_html=checklist_html,
         )
     except Exception as e:
         log.error("Alert routing failed: %s", e)
 
 
-def route_page_change_alert(city: str, name: str, url: str, priority: str):
+def route_page_change_alert(city: str, name: str, url: str, priority: str, checklist: dict = None):
     try:
         from alerts import router
+        checklist_html = ""
+        if checklist:
+            from alerts.checklist import format_checklist_html
+            checklist_html = format_checklist_html(checklist)
+
+        detail = f"STRWatch detected a change on a monitored government page in {city}. Review the source for regulation updates."
+        if checklist and checklist.get("summary"):
+            detail = checklist["summary"]
+
         router.send_city_alert(
             city=city,
             subject=f"{city} — regulation page updated",
             headline=f"{name} has been updated",
-            detail=f"STRWatch detected a change on a monitored government page in {city}. Review the source for regulation updates.",
+            detail=detail,
             source_url=url,
             urgency=priority,
+            checklist_html=checklist_html,
         )
     except Exception as e:
         log.error("Alert routing failed: %s", e)

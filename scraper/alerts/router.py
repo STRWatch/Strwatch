@@ -3,10 +3,12 @@ alerts/router.py — Alert routing engine.
 
 Queries Supabase user_markets for users watching a city,
 looks up their email via Clerk, and sends alert via Resend.
+Includes AI-generated compliance checklists in alert emails.
 """
 
 import os
 import logging
+import json
 import requests
 from typing import List, Optional
 from dotenv import load_dotenv
@@ -58,9 +60,49 @@ def get_user_email(user_id: str) -> Optional[str]:
     return emails[0].get("email_address") if emails else None
 
 
+def save_alert_to_supabase(user_id: str, city: str, subject: str,
+                            headline: str, detail: str, source_url: str,
+                            urgency: str, checklist_json: str = None) -> bool:
+    """Save alert to Supabase alerts table for dashboard display."""
+    if not SUPABASE_SERVICE_KEY:
+        return False
+    try:
+        payload = {
+            "user_id": user_id,
+            "city": city,
+            "subject": subject,
+            "headline": headline,
+            "detail": detail,
+            "source_url": source_url,
+            "urgency": urgency,
+            "sent_at": __import__("datetime").datetime.utcnow().isoformat(),
+        }
+        if checklist_json:
+            payload["checklist"] = checklist_json
+
+        resp = requests.post(
+            f"{SUPABASE_URL}/rest/v1/alerts",
+            headers={
+                "apikey": SUPABASE_SERVICE_KEY,
+                "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                "Content-Type": "application/json",
+                "Prefer": "return=minimal",
+            },
+            json=payload,
+            timeout=10,
+        )
+        if not resp.ok:
+            log.error("Failed to save alert to Supabase: %s %s", resp.status_code, resp.text)
+            return False
+        return True
+    except Exception as e:
+        log.error("Supabase alert save error: %s", e)
+        return False
+
+
 def send_alert_email(to_email: str, subject: str, city: str,
                      headline: str, detail: str, source_url: str,
-                     urgency: str = "medium") -> bool:
+                     urgency: str = "medium", checklist_html: str = "") -> bool:
     if not RESEND_API_KEY:
         log.warning("RESEND_API_KEY not set — skipping email to %s", to_email)
         return False
@@ -90,6 +132,7 @@ def send_alert_email(to_email: str, subject: str, city: str,
   <div style="padding:0 28px 20px;">
     <a href="{source_url}" style="display:inline-block;background:#1a4d2e;color:white;text-decoration:none;font-size:0.8rem;font-weight:700;padding:10px 20px;border-radius:7px;">View source →</a>
   </div>
+  {f'<div style="padding:0 28px 20px;">{checklist_html}</div>' if checklist_html else ''}
   <div style="background:#f7f9f5;border-top:1px solid #d8e8cf;padding:14px 28px;">
     <p style="margin:0;font-size:0.7rem;color:#9aab90;">You're receiving this because you're watching <strong>{city}</strong> on STRWatch.<br>
     <a href="https://app.strwatch.io/dashboard/markets" style="color:#2d7a4f;">Manage your markets</a></p>
@@ -112,7 +155,8 @@ def send_alert_email(to_email: str, subject: str, city: str,
 
 
 def send_city_alert(city: str, subject: str, headline: str,
-                    detail: str, source_url: str, urgency: str = "medium") -> dict:
+                    detail: str, source_url: str, urgency: str = "medium",
+                    checklist_html: str = "") -> dict:
     log.info("Routing alert for city: %s", city)
     user_ids = get_users_for_city(city)
     if not user_ids:
@@ -125,9 +169,18 @@ def send_city_alert(city: str, subject: str, headline: str,
         if not email:
             failed += 1
             continue
-        ok = send_alert_email(email, subject, city, headline, detail, source_url, urgency)
-        if ok: sent += 1
-        else: failed += 1
+        ok = send_alert_email(email, subject, city, headline, detail,
+                              source_url, urgency, checklist_html)
+        if ok:
+            sent += 1
+            # Save to Supabase for dashboard
+            save_alert_to_supabase(
+                user_id=user_id, city=city, subject=subject,
+                headline=headline, detail=detail, source_url=source_url,
+                urgency=urgency, checklist_json=checklist_html if checklist_html else None,
+            )
+        else:
+            failed += 1
 
     log.info("Done — city: %s | sent: %d | failed: %d", city, sent, failed)
     return {"city": city, "users": len(user_ids), "sent": sent, "failed": failed}
