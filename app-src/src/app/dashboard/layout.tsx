@@ -3,7 +3,7 @@ import Link from 'next/link'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{minHeight:'100vh', background:'#f7f9f5'}}>
+    <div style={{minHeight:'100vh', background:'#f7f9f5', display:'flex', flexDirection:'column'}}>
       <nav style={{
         height:'56px',
         background:'white',
@@ -27,9 +27,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
         <UserButton />
       </nav>
-      <main style={{paddingTop:'80px', padding:'80px 32px 32px', maxWidth:'960px', margin:'0 auto'}}>
+      <main style={{paddingTop:'80px', padding:'80px 32px 32px', maxWidth:'960px', margin:'0 auto', flex:1}}>
         {children}
       </main>
+      <footer style={{
+        borderTop:'1px solid #d8e8cf',
+        padding:'20px 32px',
+        display:'flex',
+        alignItems:'center',
+        justifyContent:'center',
+        gap:'20px',
+      }}>
+        <a href="https://www.strwatch.io/terms.html" target="_blank" rel="noopener noreferrer"
+          style={{fontFamily:'monospace', fontSize:'0.6rem', letterSpacing:'0.06em', color:'#9aab90', textDecoration:'none'}}>
+          Terms of Service
+        </a>
+        <span style={{color:'#d8e8cf'}}>·</span>
+        <a href="https://www.strwatch.io/privacy.html" target="_blank" rel="noopener noreferrer"
+          style={{fontFamily:'monospace', fontSize:'0.6rem', letterSpacing:'0.06em', color:'#9aab90', textDecoration:'none'}}>
+          Privacy Policy
+        </a>
+        <span style={{color:'#d8e8cf'}}>·</span>
+        <span style={{fontFamily:'monospace', fontSize:'0.6rem', letterSpacing:'0.06em', color:'#d8e8cf'}}>
+          © 2026 STRWatch
+        </span>
+      </footer>
     </div>
   )
 }
