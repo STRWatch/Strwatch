@@ -89,6 +89,37 @@ def init_db():
                 summary     TEXT,
                 sent_at     TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS austin_licenses (
+                license_id      TEXT PRIMARY KEY,
+                license_type    TEXT,
+                status          TEXT,
+                address         TEXT,
+                street_name     TEXT,
+                zip_code        TEXT,
+                neighborhood    TEXT,
+                council_district TEXT,
+                owner_name      TEXT,
+                issued_date     TEXT,
+                expiry_date     TEXT,
+                first_seen      TEXT,
+                last_updated    TEXT,
+                raw_json        TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS scottsdale_licenses (
+                license_id     TEXT PRIMARY KEY,
+                address        TEXT,
+                owner_name     TEXT,
+                mgmt_company   TEXT,
+                emerg_contact  TEXT,
+                emerg_phone    TEXT,
+                property_score TEXT,
+                status         TEXT DEFAULT 'active',
+                first_seen     TEXT,
+                last_updated   TEXT,
+                raw_json       TEXT
+            );
         """)
     log.info("DB initialized at %s", config.DB_PATH)
 
@@ -243,6 +274,7 @@ def record_alert(alert_key: str, alert_type: str, city: str, summary: str):
             pass  # Already recorded
 
 
+# ── Austin license helpers ────────────────────────────────────────────────────
 
 def upsert_austin_license(record: dict) -> dict:
     conn = get_conn()
@@ -266,21 +298,7 @@ def upsert_austin_license(record: dict) -> dict:
              record.get("owner_name"), record.get("issued_date"), record.get("expiry_date"),
              now, now, str(record.get("raw", {})))
         )
-        conn.execute("""
-        CREATE TABLE IF NOT EXISTS scottsdale_licenses (
-            license_id     TEXT PRIMARY KEY,
-            address        TEXT,
-            owner_name     TEXT,
-            mgmt_company   TEXT,
-            emerg_contact  TEXT,
-            emerg_phone    TEXT,
-            property_score TEXT,
-            status         TEXT DEFAULT 'active',
-            first_seen     TEXT,
-            last_updated   TEXT,
-            raw_json       TEXT
-        )
-    """)
+        conn.commit()
         return {"is_new": True, "was_revoked": False}
     was_revoked = is_revoked and "revok" not in (existing["status"] or "").lower()
     conn.execute(
@@ -315,6 +333,8 @@ def get_austin_license_stats() -> dict:
         "by_type": {row["license_type"]: row["n"] for row in by_type},
     }
 
+
+# ── Scottsdale license helpers ────────────────────────────────────────────────
 
 def upsert_scottsdale_license(record: dict) -> dict:
     conn = get_conn()

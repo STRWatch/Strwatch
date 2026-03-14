@@ -16,6 +16,7 @@ from urllib.parse import quote
 import config
 from db import store
 from alerts import notify
+from scrapers.keywords import matches_keywords
 
 log = logging.getLogger(__name__)
 
@@ -37,17 +38,8 @@ def _get(path: str, params: dict = None) -> Optional[Any]:
 
 
 def _matches_keywords(text: str) -> List[str]:
-    """Return list of STR keywords found in text (case-insensitive)."""
-    if not text:
-        return []
-    import re
-    matches = []
-    text_lower = text.lower()
-    for kw in KEYWORDS:
-        pattern = r"" + re.escape(kw.lower()) + r""
-        if re.search(pattern, text_lower):
-            matches.append(kw)
-    return matches
+    """Return list of STR keywords found in text (whole-word, case-insensitive)."""
+    return matches_keywords(text, KEYWORDS)
 
 
 def fetch_recent_legislation(days_back: int = 14) -> List[dict]:
@@ -99,6 +91,7 @@ def run(days_back: int = 14):
 
     matters = fetch_recent_legislation(days_back=days_back)
     new_bills = []
+    total_str_matches = 0
     checked = 0
     errors = 0
 
@@ -129,6 +122,7 @@ def run(days_back: int = 14):
         if not all_matches:
             continue
 
+        total_str_matches += 1
         log.info("STR match: [%s] %s (keywords: %s)", bill_id, title[:80], all_matches[:3])
 
         try:
@@ -156,8 +150,7 @@ def run(days_back: int = 14):
             log.error("DB error for matter %s: %s", matter_id, e)
 
     log.info("Nashville Legistar done — checked: %d | STR matches: %d | new: %d | errors: %d",
-             checked, len(new_bills) + (checked - checked),  # checked all
-             len(new_bills), errors)
+             checked, total_str_matches, len(new_bills), errors)
 
     # Alert on each new bill individually
     for bill in new_bills:

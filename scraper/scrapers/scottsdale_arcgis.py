@@ -113,14 +113,11 @@ def _get_db_stats() -> dict:
 def run(full_sync: bool = False):
     """
     Main entry point. Called by run.py.
-    Only does a full sync once per day to avoid hanging on 3K records.
+
+    ArcGIS has no incremental/since filter, so we always fetch all ~3K records
+    and upsert. The upsert in store.py handles dedup — only truly new license_ids
+    trigger is_new=True. At 3K records this takes ~5 seconds, acceptable for daily cron.
     """
-    from datetime import datetime, timezone
-    stats = _get_db_stats()
-    if not full_sync and stats.get("total", 0) > 0:
-        # Check if we already ran today
-        log.info("Scottsdale already has %d records — skipping full sync", stats.get("total", 0))
-        return {"processed": 0, "new": 0, "errors": 0, "stats": stats}
     log.info("=== Scottsdale ArcGIS scraper starting ===")
 
     new_licenses = []
