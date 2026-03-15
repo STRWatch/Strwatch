@@ -177,6 +177,14 @@ def run_all(args: List[str]) -> dict:
             log.error("SF scraper failed: %s", e, exc_info=True)
             results["sf"] = {"error": str(e)}
 
+        banner("Miami Beach Page Watcher")
+        try:
+            from scrapers import miamibeach_web
+            results["miamibeach"] = miamibeach_web.run()
+        except Exception as e:
+            log.error("Miami Beach scraper failed: %s", e, exc_info=True)
+            results["miamibeach"] = {"error": str(e)}
+
     # ── Deadline Reminders (runs after all scrapers) ──
     banner("Deadline Reminders")
     try:

@@ -14,6 +14,7 @@ const AVAILABLE_MARKETS = [
   { city: 'Charleston, SC', description: 'Strict zoning overlay · ~700 permits · Page monitoring' },
   { city: 'Savannah, GA', description: 'STVR overlay district · 20% ward cap · Deckard portal' },
   { city: 'San Francisco, CA', description: '$925 app fee · 90-night cap · 14% TOT · Page monitoring' },
+  { city: 'Miami Beach, FL', description: '$20K+ fines · Strict zoning · 4 licenses required · Page monitoring' },
 ]
 
 export default function MarketsClient({
