@@ -145,6 +145,14 @@ def run_all(args: List[str]) -> dict:
             log.error("NOLA SODA scraper failed: %s", e, exc_info=True)
             results["nola_soda"] = {"error": str(e)}
 
+        banner("San Diego STRO Licenses")
+        try:
+            from scrapers import sandiego_stro
+            results["sandiego"] = sandiego_stro.run()
+        except Exception as e:
+            log.error("San Diego scraper failed: %s", e, exc_info=True)
+            results["sandiego"] = {"error": str(e)}
+
     # ── Deadline Reminders (runs after all scrapers) ──
     banner("Deadline Reminders")
     try:

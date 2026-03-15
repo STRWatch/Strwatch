@@ -425,6 +425,67 @@ def alert_nola_revocations(licenses: list):
         log.error("NOLA revocation routing failed: %s", e)
 
 
+def alert_sandiego_new_licenses(licenses: list):
+    """Alert for new San Diego STRO licenses detected."""
+    if not licenses:
+        return
+    count = len(licenses)
+    key = _make_key("sandiego_new_licenses", datetime.utcnow().strftime("%Y-%m-%d"), count)
+    if store.already_alerted(key):
+        return
+
+    sample = licenses[:5]
+    detail_lines = [f"• {lic.get('address', 'Unknown')} — Tier {lic.get('license_type', '?')}" for lic in sample]
+    if count > 5:
+        detail_lines.append(f"... and {count - 5} more")
+    headline = f"{count} new STRO license{'s' if count != 1 else ''} detected in San Diego"
+    detail = "New licenses issued:\n" + "\n".join(detail_lines)
+
+    subject = f"[STRWatch] San Diego: {count} new STRO license{'s' if count != 1 else ''}"
+    send_email(subject, f"<p>{headline}</p><p>{detail}</p>", f"{headline}\n\n{detail}")
+    store.record_alert(key, "sandiego_new_licenses", "San Diego, CA", f"{count} new licenses")
+
+    try:
+        from alerts import router
+        router.send_city_alert(
+            city="San Diego, CA", subject=f"San Diego — {count} new STRO license{'s' if count != 1 else ''}",
+            headline=headline, detail=detail,
+            source_url="https://data.sandiego.gov/datasets/stro-licenses/",
+            urgency="low",
+        )
+    except Exception as e:
+        log.error("SD new license routing failed: %s", e)
+
+
+def alert_sandiego_removals(licenses: list):
+    """Alert for San Diego STRO licenses removed from active dataset."""
+    if not licenses:
+        return
+    count = len(licenses)
+    key = _make_key("sandiego_removals", datetime.utcnow().strftime("%Y-%m-%d"), count)
+    if store.already_alerted(key):
+        return
+
+    headline = f"{count} STRO license{'s' if count != 1 else ''} removed from San Diego active dataset"
+    detail = f"{count} license(s) no longer appear in the city's active license CSV. This may indicate revocation, expiration, or voluntary surrender."
+
+    subject = f"[STRWatch] San Diego: {count} STRO license{'s' if count != 1 else ''} removed"
+    send_email(subject, f"<p>{headline}</p><p>{detail}</p>", f"{headline}\n\n{detail}")
+    send_sms(f"[STRWatch] San Diego: {count} STRO license(s) removed from active list. Check email.")
+    store.record_alert(key, "sandiego_removals", "San Diego, CA", f"{count} removals")
+
+    try:
+        from alerts import router
+        router.send_city_alert(
+            city="San Diego, CA", subject=f"San Diego — {count} STRO license{'s' if count != 1 else ''} removed",
+            headline=headline, detail=detail,
+            source_url="https://data.sandiego.gov/datasets/stro-licenses/",
+            urgency="high",
+        )
+    except Exception as e:
+        log.error("SD removal routing failed: %s", e)
+
+
 # ── Alert routing (calls router.send_city_alert for real user emails) ─────────
 
 def route_legislation_alert(city: str, title: str, url: str, keywords: list, checklist: dict = None):

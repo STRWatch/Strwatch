@@ -48,6 +48,9 @@ NOLA_LEGISTAR_BASE = "https://webapi.legistar.com/v1/cityofno"
 NOLA_SODA_ENDPOINT = "https://data.nola.gov/resource/2ei9-wqw2.json"
 NOLA_SODA_LIMIT = 1000
 
+# ── San Diego ─────────────────────────────────────────────────────────────────
+SANDIEGO_STRO_CSV = "https://seshat.datasd.org/stro/stro_licenses_datasd.csv"
+
 # ── STR keywords to watch for in legislation text ────────────────────────────
 STR_KEYWORDS = [
     "short-term rental", "short term rental", "STR", "STRP",
@@ -105,6 +108,12 @@ WATCHED_PAGES = [
         "url": "https://nola.gov/next/short-term-rental-administration/topics/registry-of-short-term-rentals/",
         "city": "New Orleans, LA",
         "priority": "medium",
+    },
+    {
+        "name": "San Diego — STRO Regulations",
+        "url": "https://www.sandiego.gov/treasurer/short-term-residential-occupancy",
+        "city": "San Diego, CA",
+        "priority": "high",
     },
 ]
 

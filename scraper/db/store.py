@@ -138,6 +138,22 @@ def init_db():
             );
             CREATE INDEX IF NOT EXISTS idx_nola_license_id ON nola_licenses(license_id);
             CREATE INDEX IF NOT EXISTS idx_nola_status ON nola_licenses(status);
+
+            CREATE TABLE IF NOT EXISTS sandiego_licenses (
+                license_id     TEXT PRIMARY KEY,
+                address        TEXT,
+                zip_code       TEXT,
+                license_type   TEXT,
+                status         TEXT DEFAULT 'active',
+                issued_date    TEXT,
+                expiry_date    TEXT,
+                planning_area  TEXT,
+                owner_name     TEXT,
+                raw_json       TEXT,
+                first_seen     TEXT DEFAULT CURRENT_TIMESTAMP,
+                last_seen      TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_sandiego_license_id ON sandiego_licenses(license_id);
         """)
     log.info("DB initialized at %s", config.DB_PATH)
 
@@ -442,3 +458,73 @@ def get_nola_stats() -> dict:
             "SELECT COUNT(*) as n FROM nola_licenses WHERE LOWER(status) IN ('active', 'issued', 'approved')"
         ).fetchone()["n"]
         return {"total": total, "active": active}
+
+
+# ── San Diego license helpers ────────────────────────────────────────────────
+
+def upsert_sandiego_license(record: dict) -> dict:
+    """Insert or update a San Diego STRO license record."""
+    lid = record.get("license_id")
+    now = _now()
+
+    with get_conn() as conn:
+        existing = conn.execute(
+            "SELECT license_id FROM sandiego_licenses WHERE license_id=?", (lid,)
+        ).fetchone()
+
+        is_new = existing is None
+
+        if existing:
+            conn.execute("""
+                UPDATE sandiego_licenses SET
+                    address=?, zip_code=?, license_type=?, status=?,
+                    issued_date=?, expiry_date=?, planning_area=?,
+                    raw_json=?, last_seen=?
+                WHERE license_id=?
+            """, (
+                record.get("address"), record.get("zip_code"), record.get("license_type"),
+                record.get("status", "active"), record.get("issued_date"), record.get("expiry_date"),
+                record.get("planning_area"), json.dumps(record.get("raw", {})), now, lid
+            ))
+        else:
+            conn.execute("""
+                INSERT INTO sandiego_licenses
+                    (license_id, address, zip_code, license_type, status,
+                     issued_date, expiry_date, planning_area, raw_json,
+                     first_seen, last_seen)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                lid, record.get("address"), record.get("zip_code"), record.get("license_type"),
+                record.get("status", "active"), record.get("issued_date"), record.get("expiry_date"),
+                record.get("planning_area"), json.dumps(record.get("raw", {})), now, now
+            ))
+
+    return {"is_new": is_new}
+
+
+def get_sandiego_license_ids() -> set:
+    with get_conn() as conn:
+        rows = conn.execute("SELECT license_id FROM sandiego_licenses WHERE status='active'").fetchall()
+        return {r["license_id"] for r in rows}
+
+
+def mark_sandiego_license_removed(license_id: str):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE sandiego_licenses SET status='removed', last_seen=? WHERE license_id=?",
+            (_now(), license_id)
+        )
+
+
+def get_sandiego_stats() -> dict:
+    with get_conn() as conn:
+        total = conn.execute("SELECT COUNT(*) as n FROM sandiego_licenses").fetchone()["n"]
+        active = conn.execute("SELECT COUNT(*) as n FROM sandiego_licenses WHERE status='active'").fetchone()["n"]
+        by_tier = conn.execute(
+            "SELECT license_type, COUNT(*) as n FROM sandiego_licenses WHERE status='active' GROUP BY license_type"
+        ).fetchall()
+        return {
+            "total": total,
+            "active": active,
+            "by_tier": {r["license_type"]: r["n"] for r in by_tier},
+        }
