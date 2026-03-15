@@ -9,6 +9,7 @@ const AVAILABLE_MARKETS = [
   { city: 'Denver, CO',    description: '7,449 licenses tracked · SODA API' },
   { city: 'Scottsdale, AZ', description: '2,999 licenses tracked · ArcGIS API' },
   { city: 'Palm Springs, CA', description: 'PrimeGov council portal · Active enforcement' },
+  { city: 'New Orleans, LA', description: '1,300 licenses tracked · Legistar + SODA API' },
 ]
 
 export default function MarketsClient({
