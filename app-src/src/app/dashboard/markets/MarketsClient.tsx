@@ -16,6 +16,7 @@ const AVAILABLE_MARKETS = [
   { city: 'San Francisco, CA', description: '$925 app fee · 90-night cap · 14% TOT · Page monitoring' },
   { city: 'Miami Beach, FL', description: '$20K+ fines · Strict zoning · 4 licenses required · Page monitoring' },
   { city: 'Gatlinburg, TN', description: 'Tourist Residency Permit · Massive STR density · Smoky Mountains' },
+  { city: 'Asheville, NC', description: 'Whole-home STRs banned in residential · Homestays only · Active enforcement' },
 ]
 
 export default function MarketsClient({
