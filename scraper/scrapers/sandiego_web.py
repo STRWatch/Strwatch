@@ -25,8 +25,8 @@ WATCHED_PAGES = [
         "priority": "high",
     },
     {
-        "name": "San Diego — STRO FAQ & Updates",
-        "url": "https://www.sandiego.gov/treasurer/short-term-residential-occupancy/faqs",
+        "name": "San Diego — STRO Open Data Portal",
+        "url": "https://data.sandiego.gov/datasets/stro-licenses/",
         "priority": "medium",
     },
     {
