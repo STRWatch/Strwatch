@@ -2,7 +2,8 @@
 alerts/router.py — Alert routing engine.
 
 Queries Supabase user_markets for users watching a city,
-looks up their email via Clerk, and sends alert via Resend.
+looks up their email via Clerk and phone via user_preferences,
+sends alert via Resend (email) and Twilio (SMS for Pro users).
 Includes AI-generated compliance checklists in alert emails.
 """
 
@@ -21,6 +22,9 @@ SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY", "")
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 RESEND_FROM = os.getenv("RESEND_FROM", "STRWatch <alerts@strwatch.io>")
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
+TWILIO_FROM = os.getenv("TWILIO_FROM", "")
 
 
 def get_users_for_city(city: str) -> List[str]:
@@ -58,6 +62,76 @@ def get_user_email(user_id: str) -> Optional[str]:
         if e.get("id") == primary_id:
             return e.get("email_address")
     return emails[0].get("email_address") if emails else None
+
+
+def get_user_preferences(user_id: str) -> dict:
+    """Fetch user notification preferences from Supabase."""
+    if not SUPABASE_SERVICE_KEY:
+        return {}
+    try:
+        resp = requests.get(
+            f"{SUPABASE_URL}/rest/v1/user_preferences",
+            headers={"apikey": SUPABASE_SERVICE_KEY, "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}"},
+            params={"user_id": f"eq.{user_id}", "select": "*"},
+            timeout=10,
+        )
+        if not resp.ok:
+            return {}
+        rows = resp.json()
+        return rows[0] if rows else {}
+    except Exception as e:
+        log.error("Error fetching preferences for %s: %s", user_id, e)
+        return {}
+
+
+def get_user_tier(user_id: str) -> str:
+    """Fetch user tier from Supabase."""
+    if not SUPABASE_SERVICE_KEY:
+        return "free"
+    try:
+        resp = requests.get(
+            f"{SUPABASE_URL}/rest/v1/user_tiers",
+            headers={"apikey": SUPABASE_SERVICE_KEY, "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}"},
+            params={"user_id": f"eq.{user_id}", "select": "tier,trial_ends_at"},
+            timeout=10,
+        )
+        if not resp.ok:
+            return "free"
+        rows = resp.json()
+        if not rows:
+            return "free"
+        row = rows[0]
+        tier = row.get("tier", "free")
+        trial_ends = row.get("trial_ends_at")
+        if trial_ends and tier == "pro":
+            from datetime import datetime, timezone
+            ends = datetime.fromisoformat(trial_ends.replace("Z", "+00:00"))
+            if ends > datetime.now(timezone.utc):
+                return "pro"  # trial still active
+            return "free"  # trial expired
+        return tier
+    except Exception as e:
+        log.error("Error fetching tier for %s: %s", user_id, e)
+        return "free"
+
+
+def send_sms_to_user(phone: str, message: str) -> bool:
+    """Send SMS via Twilio to a specific phone number."""
+    if not all([TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM, phone]):
+        return False
+    try:
+        from twilio.rest import Client
+        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        client.messages.create(
+            body=message[:1600],
+            from_=TWILIO_FROM,
+            to=phone,
+        )
+        log.info("SMS sent to %s", phone[:6] + "****")
+        return True
+    except Exception as e:
+        log.error("SMS send failed to %s: %s", phone[:6] + "****", e)
+        return False
 
 
 def save_alert_to_supabase(user_id: str, city: str, subject: str,
@@ -135,11 +209,11 @@ def send_alert_email(to_email: str, subject: str, city: str,
   {f'<div style="padding:0 28px 20px;">{checklist_html}</div>' if checklist_html else ''}
   <div style="background:#f7f9f5;border-top:1px solid #d8e8cf;padding:14px 28px;">
     <p style="margin:0;font-size:0.7rem;color:#9aab90;">You're receiving this because you're watching <strong>{city}</strong> on STRWatch.<br>
-    <a href="https://app.strwatch.io/dashboard/markets" style="color:#2d7a4f;">Manage your markets</a></p>
+    <a href="https://app.strwatch.io/dashboard/settings" style="color:#2d7a4f;">Manage notifications</a></p>
   </div>
 </div></body></html>"""
 
-    text = f"{headline}\n\n{detail}\n\nSource: {source_url}\n\nManage markets: https://app.strwatch.io/dashboard/markets"
+    text = f"{headline}\n\n{detail}\n\nSource: {source_url}\n\nManage notifications: https://app.strwatch.io/dashboard/settings"
 
     resp = requests.post(
         "https://api.resend.com/emails",
@@ -148,7 +222,7 @@ def send_alert_email(to_email: str, subject: str, city: str,
         timeout=15,
     )
     if resp.ok:
-        log.info("Alert sent to %s", to_email)
+        log.info("Alert email sent to %s", to_email)
         return True
     log.error("Resend failed for %s: %s %s", to_email, resp.status_code, resp.text)
     return False
@@ -161,29 +235,47 @@ def send_city_alert(city: str, subject: str, headline: str,
     user_ids = get_users_for_city(city)
     if not user_ids:
         log.info("No users watching %s", city)
-        return {"city": city, "users": 0, "sent": 0, "failed": 0}
+        return {"city": city, "users": 0, "sent": 0, "sms_sent": 0, "failed": 0}
 
-    sent = failed = 0
+    sent = sms_sent = failed = 0
     for user_id in user_ids:
         email = get_user_email(user_id)
-        if not email:
-            failed += 1
-            continue
-        ok = send_alert_email(email, subject, city, headline, detail,
-                              source_url, urgency, checklist_html)
-        if ok:
-            sent += 1
-            # Save to Supabase for dashboard
-            save_alert_to_supabase(
-                user_id=user_id, city=city, subject=subject,
-                headline=headline, detail=detail, source_url=source_url,
-                urgency=urgency, checklist_json=checklist_html if checklist_html else None,
-            )
-        else:
+        prefs = get_user_preferences(user_id)
+        tier = get_user_tier(user_id)
+
+        email_enabled = prefs.get("email_enabled", True)
+        sms_enabled = prefs.get("sms_enabled", True)
+        phone = prefs.get("phone", "")
+        is_pro = tier in ("pro", "agency")
+
+        # Send email (if enabled)
+        email_ok = False
+        if email and email_enabled:
+            email_ok = send_alert_email(email, subject, city, headline, detail,
+                                         source_url, urgency, checklist_html)
+            if email_ok:
+                sent += 1
+            else:
+                failed += 1
+        elif not email:
+            log.warning("No email found for user %s", user_id)
             failed += 1
 
-    log.info("Done — city: %s | sent: %d | failed: %d", city, sent, failed)
-    return {"city": city, "users": len(user_ids), "sent": sent, "failed": failed}
+        # Send SMS for high-urgency alerts to Pro users with phone + SMS enabled
+        if is_pro and sms_enabled and phone and urgency == "high":
+            sms_text = f"[STRWatch] {city}: {headline[:100]}"
+            if send_sms_to_user(phone, sms_text):
+                sms_sent += 1
+
+        # Save to Supabase for dashboard (regardless of send success)
+        save_alert_to_supabase(
+            user_id=user_id, city=city, subject=subject,
+            headline=headline, detail=detail, source_url=source_url,
+            urgency=urgency, checklist_json=checklist_html if checklist_html else None,
+        )
+
+    log.info("Done — city: %s | emails: %d | sms: %d | failed: %d", city, sent, sms_sent, failed)
+    return {"city": city, "users": len(user_ids), "sent": sent, "sms_sent": sms_sent, "failed": failed}
 
 
 if __name__ == "__main__":
