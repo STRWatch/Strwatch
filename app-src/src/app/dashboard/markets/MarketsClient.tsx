@@ -11,6 +11,8 @@ const AVAILABLE_MARKETS = [
   { city: 'Palm Springs, CA', description: 'PrimeGov council portal · Active enforcement' },
   { city: 'New Orleans, LA', description: '1,300 licenses tracked · Legistar + SODA API' },
   { city: 'San Diego, CA', description: '7,954 STRO licenses · 4-tier system · Page monitoring' },
+  { city: 'Charleston, SC', description: 'Strict zoning overlay · ~700 permits · Page monitoring' },
+  { city: 'Savannah, GA', description: 'STVR overlay district · 20% ward cap · Deckard portal' },
 ]
 
 export default function MarketsClient({
