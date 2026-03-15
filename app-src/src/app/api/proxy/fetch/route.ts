@@ -75,10 +75,10 @@ export async function GET(request: Request) {
       },
     });
 
-  } catch (err) {
-    console.error(`Proxy fetch error for ${targetUrl}:`, err.message);
+  } catch (err: unknown) {
+    console.error(`Proxy fetch error for ${targetUrl}:`, (err instanceof Error ? err.message : String(err)));
     return NextResponse.json(
-      { error: 'Proxy fetch failed', detail: err.message },
+      { error: 'Proxy fetch failed', detail: (err instanceof Error ? err.message : String(err)) },
       { status: 502 }
     );
   }
