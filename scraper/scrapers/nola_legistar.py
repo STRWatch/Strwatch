@@ -16,6 +16,7 @@ import requests
 from datetime import datetime, timezone, timedelta
 
 from scrapers.keywords import matches_keywords
+import config
 from db import store
 from alerts import notify
 
@@ -23,6 +24,7 @@ log = logging.getLogger(__name__)
 
 BASE = "https://webapi.legistar.com/v1/cityofno"
 CITY = "New Orleans, LA"
+KEYWORDS = config.STR_KEYWORDS
 
 
 def _get(path: str, params: dict = None) -> Optional[Any]:
@@ -101,14 +103,14 @@ def run(days_back: int = 14):
         url = get_matter_url(matter_id)
 
         # Quick title scan first (fast) — uses shared word-boundary matching
-        title_matches = matches_keywords(title)
+        title_matches = matches_keywords(title, KEYWORDS)
 
         # If title matches, also scan full text for more context
         body_matches = []
         if title_matches or any(kw.lower() in matter_type.lower() for kw in ["rental", "str", "lodging", "airbnb"]):
             try:
                 text = fetch_legislation_text(matter_id)
-                body_matches = matches_keywords(text)
+                body_matches = matches_keywords(text, KEYWORDS)
             except Exception as e:
                 errors += 1
                 log.warning("Could not fetch text for NOLA matter %s: %s", matter_id, e)

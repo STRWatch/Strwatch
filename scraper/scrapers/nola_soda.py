@@ -33,52 +33,47 @@ APPLICATIONS_ENDPOINT = "https://data.nola.gov/resource/en36-xvxg.json"
 PAGE_SIZE = 1000
 CITY = "New Orleans, LA"
 
-# Field mapping — NOLA SODA field names → our normalized names
-# Run with --dump-fields to discover actual column names
+# Field mapping — verified via --dump-fields on 2026-03-15
 FIELD_MAP = {
     "license_number":       "license_id",
-    "licensenumber":        "license_id",
-    "permit_number":        "license_id",
-    "permitnumber":         "license_id",
-    "application_number":   "license_id",
+    "licid":                "licid",
+    "reference_code":       "reference_code",
     "address":              "address",
-    "property_address":     "address",
-    "location_address":     "address",
-    "license_type":         "license_type",
-    "licensetype":          "license_type",
-    "permit_type":          "license_type",
     "type":                 "license_type",
-    "status":               "status",
-    "license_status":       "status",
     "current_status":       "status",
-    "application_status":   "status",
     "issue_date":           "issued_date",
-    "issued_date":          "issued_date",
-    "date_issued":          "issued_date",
     "expiration_date":      "expiry_date",
-    "expiry_date":          "expiry_date",
-    "date_expired":         "expiry_date",
-    "owner_name":           "owner_name",
-    "applicant_name":       "owner_name",
-    "operator_name":        "owner_name",
-    "neighborhood":         "neighborhood",
-    "council_district":     "neighborhood",
-    "bedroom_limit":        "bedroom_limit",
-    "guest_limit":          "guest_limit",
+    "owner":                "owner_name",
+    "operator":             "operator_name",
+    "operator_type":        "operator_type",
+    "operator_phone":       "operator_phone",
+    "operator_email":       "operator_email",
+    "type_of_building":     "building_type",
+    "bedrooms_rented":      "bedroom_limit",
+    "max_occupancy":        "guest_limit",
+    "partial_whole":        "partial_whole",
+    "operator_permit":      "operator_permit",
 }
 
 
 def _normalize(raw: dict) -> dict:
-    """Map raw SODA record to our normalized schema."""
-    out = {"raw": raw}
-    raw_lower = {k.lower().replace(" ", "_"): v for k, v in raw.items()}
-    for soda_field, our_field in FIELD_MAP.items():
-        if soda_field in raw_lower and our_field not in out:
-            out[our_field] = str(raw_lower[soda_field]).strip() if raw_lower[soda_field] else None
-    # Ensure license_id always present
-    if not out.get("license_id"):
-        out["license_id"] = raw.get(":id") or raw.get("_id") or str(hash(str(raw)))
-    return out
+    """Map raw SODA record to our normalized schema using verified field names."""
+    return {
+        "raw": raw,
+        "license_id": raw.get("license_number") or raw.get("licid") or str(hash(str(raw))),
+        "address": raw.get("address") or "",
+        "license_type": raw.get("type") or "",
+        "status": raw.get("current_status") or "",
+        "issued_date": (raw.get("issue_date") or "")[:10],
+        "expiry_date": (raw.get("expiration_date") or "")[:10],
+        "owner_name": raw.get("owner") or "",
+        "neighborhood": "",  # not in this dataset
+        "bedroom_limit": raw.get("bedrooms_rented") or "",
+        "guest_limit": raw.get("max_occupancy") or "",
+        "building_type": raw.get("type_of_building") or "",
+        "partial_whole": raw.get("partial_whole") or "",
+        "operator_name": raw.get("operator") or "",
+    }
 
 
 def _fetch_page(endpoint: str, offset: int, since: Optional[str] = None) -> List[dict]:
