@@ -120,6 +120,24 @@ def init_db():
                 last_updated   TEXT,
                 raw_json       TEXT
             );
+
+            CREATE TABLE IF NOT EXISTS nola_licenses (
+                license_id     TEXT PRIMARY KEY,
+                address        TEXT,
+                license_type   TEXT,
+                status         TEXT,
+                issued_date    TEXT,
+                expiry_date    TEXT,
+                owner_name     TEXT,
+                neighborhood   TEXT,
+                bedroom_limit  TEXT,
+                guest_limit    TEXT,
+                raw_json       TEXT,
+                first_seen     TEXT DEFAULT CURRENT_TIMESTAMP,
+                last_seen      TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_nola_license_id ON nola_licenses(license_id);
+            CREATE INDEX IF NOT EXISTS idx_nola_status ON nola_licenses(status);
         """)
     log.info("DB initialized at %s", config.DB_PATH)
 
@@ -365,3 +383,62 @@ def get_last_scottsdale_sync() -> str:
         return row[0] if row and row[0] else None
     except Exception:
         return None
+
+
+# ── New Orleans license helpers ──────────────────────────────────────────────
+
+def upsert_nola_license(record: dict) -> dict:
+    """Insert or update a New Orleans STR license record."""
+    lid = record.get("license_id")
+    now = _now()
+
+    with get_conn() as conn:
+        existing = conn.execute(
+            "SELECT status FROM nola_licenses WHERE license_id=?", (lid,)
+        ).fetchone()
+
+        new_status = (record.get("status") or "").lower()
+        is_new = existing is None
+        was_revoked = False
+
+        if existing:
+            old_status = (existing["status"] or "").lower()
+            if old_status in ("active", "issued", "approved") and new_status in ("revoked", "expired", "denied", "suspended", "cancelled"):
+                was_revoked = True
+
+            conn.execute("""
+                UPDATE nola_licenses SET
+                    address=?, license_type=?, status=?, issued_date=?, expiry_date=?,
+                    owner_name=?, neighborhood=?, bedroom_limit=?, guest_limit=?,
+                    raw_json=?, last_seen=?
+                WHERE license_id=?
+            """, (
+                record.get("address"), record.get("license_type"), record.get("status"),
+                record.get("issued_date"), record.get("expiry_date"), record.get("owner_name"),
+                record.get("neighborhood"), record.get("bedroom_limit"), record.get("guest_limit"),
+                json.dumps(record.get("raw", {})), now, lid
+            ))
+        else:
+            conn.execute("""
+                INSERT INTO nola_licenses
+                    (license_id, address, license_type, status, issued_date, expiry_date,
+                     owner_name, neighborhood, bedroom_limit, guest_limit, raw_json,
+                     first_seen, last_seen)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                lid, record.get("address"), record.get("license_type"), record.get("status"),
+                record.get("issued_date"), record.get("expiry_date"), record.get("owner_name"),
+                record.get("neighborhood"), record.get("bedroom_limit"), record.get("guest_limit"),
+                json.dumps(record.get("raw", {})), now, now
+            ))
+
+    return {"is_new": is_new, "was_revoked": was_revoked}
+
+
+def get_nola_stats() -> dict:
+    with get_conn() as conn:
+        total = conn.execute("SELECT COUNT(*) as n FROM nola_licenses").fetchone()["n"]
+        active = conn.execute(
+            "SELECT COUNT(*) as n FROM nola_licenses WHERE LOWER(status) IN ('active', 'issued', 'approved')"
+        ).fetchone()["n"]
+        return {"total": total, "active": active}

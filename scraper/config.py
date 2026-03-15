@@ -43,6 +43,11 @@ NASHVILLE_LEGISTAR_RSS = "https://nashville.legistar.com/Feed.ashx?M=Calendar&ID
 AUSTIN_STR_PAGE = "https://www.austintexas.gov/department/short-term-rentals"
 AUSTIN_COUNCIL_AGENDA_BASE = "https://www.austintexas.gov/department/city-council/2026/2026_council_index.htm"
 
+# ── New Orleans ───────────────────────────────────────────────────────────────
+NOLA_LEGISTAR_BASE = "https://webapi.legistar.com/v1/cityofno"
+NOLA_SODA_ENDPOINT = "https://data.nola.gov/resource/2ei9-wqw2.json"
+NOLA_SODA_LIMIT = 1000
+
 # ── STR keywords to watch for in legislation text ────────────────────────────
 STR_KEYWORDS = [
     "short-term rental", "short term rental", "STR", "STRP",
@@ -88,6 +93,18 @@ WATCHED_PAGES = [
         "url": "https://www.denvergov.org/Government/Agencies-Departments-Offices/Agencies-Departments-Offices-Directory/Business-Licensing/Business-licenses/Short-term-rentals/Short-term-rentals-laws-rules-regulations",
         "city": "Denver",
         "priority": "high",
+    },
+    {
+        "name": "NOLA — STR Administration",
+        "url": "https://www.nola.gov/short-term-rentals/",
+        "city": "New Orleans, LA",
+        "priority": "high",
+    },
+    {
+        "name": "NOLA — STR Registry",
+        "url": "https://nola.gov/next/short-term-rental-administration/topics/registry-of-short-term-rentals/",
+        "city": "New Orleans, LA",
+        "priority": "medium",
     },
 ]
 

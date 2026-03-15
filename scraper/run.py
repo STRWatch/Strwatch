@@ -9,6 +9,7 @@ Flags:
   --denver-only     Only run Denver SODA scraper
   --nashville-only  Only run Nashville Legistar scraper
   --austin-only     Only run Austin scraper
+  --nola-only       Only run New Orleans scrapers
   --pages-only      Only run generic page watcher
   --dump-fields     Print Denver SODA API field names (for FIELD_MAP setup)
   --dry-run         Run scrapers but skip sending alerts
@@ -127,6 +128,22 @@ def run_all(args: List[str]) -> dict:
         except Exception as e:
             log.error("Austin SODA scraper failed: %s", e, exc_info=True)
             results["austin_soda"] = {"error": str(e)}
+
+        banner("New Orleans Legistar")
+        try:
+            from scrapers import nola_legistar
+            results["nola_legistar"] = nola_legistar.run(days_back=14)
+        except Exception as e:
+            log.error("NOLA Legistar scraper failed: %s", e, exc_info=True)
+            results["nola_legistar"] = {"error": str(e)}
+
+        banner("New Orleans SODA Licenses")
+        try:
+            from scrapers import nola_soda
+            results["nola_soda"] = nola_soda.run(full_sync=full_sync)
+        except Exception as e:
+            log.error("NOLA SODA scraper failed: %s", e, exc_info=True)
+            results["nola_soda"] = {"error": str(e)}
 
     # ── Deadline Reminders (runs after all scrapers) ──
     banner("Deadline Reminders")

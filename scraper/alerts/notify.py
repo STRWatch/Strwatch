@@ -334,6 +334,97 @@ def alert_scottsdale_new_licenses(licenses: list):
     send_email(subject, f"<p>{text}</p>", text)
 
 
+def alert_nola_new_licenses(licenses: list):
+    """Alert for new New Orleans STR licenses detected."""
+    if not licenses:
+        return
+    count = len(licenses)
+    key = _make_key("nola_new_licenses", datetime.utcnow().strftime("%Y-%m-%d"), count)
+    if store.already_alerted(key):
+        return
+
+    sample = licenses[:5]
+    detail_lines = [f"• {lic.get('address', 'Unknown')} — {lic.get('license_type', 'Unknown type')}" for lic in sample]
+    if count > 5:
+        detail_lines.append(f"... and {count - 5} more")
+    headline = f"{count} new STR license{'s' if count != 1 else ''} detected in New Orleans"
+    detail = "New licenses issued:\n" + "\n".join(detail_lines)
+
+    subject = f"[STRWatch] New Orleans: {count} new STR license{'s' if count != 1 else ''}"
+    send_email(subject, f"<p>{headline}</p><p>{detail}</p>", f"{headline}\n\n{detail}")
+    store.record_alert(key, "nola_new_licenses", "New Orleans, LA", f"{count} new licenses")
+
+    # Route to users
+    try:
+        from alerts import router
+        checklist_html = ""
+        try:
+            checklist = _generate_checklist_safe(
+                city="New Orleans, LA", title=headline,
+                keywords=["new license", "STR"], source_url="https://data.nola.gov/Housing-Land-Use-and-Blight/Non-Commercial-Short-Term-Rental-Licenses/2ei9-wqw2",
+                alert_type="new_licenses",
+            )
+            if checklist:
+                from alerts.checklist import format_checklist_html
+                checklist_html = format_checklist_html(checklist)
+        except Exception:
+            pass
+        router.send_city_alert(
+            city="New Orleans, LA", subject=f"New Orleans — {count} new STR license{'s' if count != 1 else ''}",
+            headline=headline, detail=detail,
+            source_url="https://data.nola.gov/Housing-Land-Use-and-Blight/Non-Commercial-Short-Term-Rental-Licenses/2ei9-wqw2",
+            urgency="low", checklist_html=checklist_html,
+        )
+    except Exception as e:
+        log.error("NOLA new license routing failed: %s", e)
+
+
+def alert_nola_revocations(licenses: list):
+    """Alert for New Orleans STR license revocations/expirations."""
+    if not licenses:
+        return
+    count = len(licenses)
+    key = _make_key("nola_revocations", datetime.utcnow().strftime("%Y-%m-%d"), count)
+    if store.already_alerted(key):
+        return
+
+    sample = licenses[:5]
+    detail_lines = [f"• {lic.get('address', 'Unknown')} — {lic.get('status', 'Unknown status')}" for lic in sample]
+    if count > 5:
+        detail_lines.append(f"... and {count - 5} more")
+    headline = f"{count} STR license{'s' if count != 1 else ''} revoked or expired in New Orleans"
+    detail = "License status changes detected:\n" + "\n".join(detail_lines)
+
+    subject = f"[STRWatch] 🚨 New Orleans: {count} STR license{'s' if count != 1 else ''} revoked/expired"
+    send_email(subject, f"<p>{headline}</p><p>{detail}</p>", f"{headline}\n\n{detail}")
+    send_sms(f"[STRWatch] New Orleans: {count} STR license(s) revoked/expired. Check email.")
+    store.record_alert(key, "nola_revocations", "New Orleans, LA", f"{count} revocations")
+
+    # Route to users
+    try:
+        from alerts import router
+        checklist_html = ""
+        try:
+            checklist = _generate_checklist_safe(
+                city="New Orleans, LA", title=headline,
+                keywords=["revocation", "STR"], source_url="https://data.nola.gov/Housing-Land-Use-and-Blight/Non-Commercial-Short-Term-Rental-Licenses/2ei9-wqw2",
+                alert_type="revocations",
+            )
+            if checklist:
+                from alerts.checklist import format_checklist_html
+                checklist_html = format_checklist_html(checklist)
+        except Exception:
+            pass
+        router.send_city_alert(
+            city="New Orleans, LA", subject=f"New Orleans — {count} STR license{'s' if count != 1 else ''} revoked/expired",
+            headline=headline, detail=detail,
+            source_url="https://data.nola.gov/Housing-Land-Use-and-Blight/Non-Commercial-Short-Term-Rental-Licenses/2ei9-wqw2",
+            urgency="high", checklist_html=checklist_html,
+        )
+    except Exception as e:
+        log.error("NOLA revocation routing failed: %s", e)
+
+
 # ── Alert routing (calls router.send_city_alert for real user emails) ─────────
 
 def route_legislation_alert(city: str, title: str, url: str, keywords: list, checklist: dict = None):
