@@ -13,6 +13,7 @@ const AVAILABLE_MARKETS = [
   { city: 'San Diego, CA', description: '7,954 STRO licenses · 4-tier system · Page monitoring' },
   { city: 'Charleston, SC', description: 'Strict zoning overlay · ~700 permits · Page monitoring' },
   { city: 'Savannah, GA', description: 'STVR overlay district · 20% ward cap · Deckard portal' },
+  { city: 'San Francisco, CA', description: '$925 app fee · 90-night cap · 14% TOT · Page monitoring' },
 ]
 
 export default function MarketsClient({
