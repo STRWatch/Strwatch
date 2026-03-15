@@ -175,13 +175,31 @@ Return this exact JSON structure:
       if (block.type === 'text') responseText += block.text
     }
 
-    // Parse JSON
+    // Parse JSON — handle markdown fences, preamble text, etc.
     let clean = responseText.trim()
-    if (clean.startsWith('```')) clean = clean.split('\n', 2)[1] || clean.substring(3)
-    if (clean.endsWith('```')) clean = clean.slice(0, -3)
-    clean = clean.trim()
+    
+    // Strip markdown code fences (```json ... ``` or ``` ... ```)
+    const fenceMatch = clean.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/)
+    if (fenceMatch) {
+      clean = fenceMatch[1].trim()
+    }
+    
+    // If still not starting with {, try to find the JSON object
+    if (!clean.startsWith('{')) {
+      const jsonStart = clean.indexOf('{')
+      const jsonEnd = clean.lastIndexOf('}')
+      if (jsonStart !== -1 && jsonEnd !== -1) {
+        clean = clean.substring(jsonStart, jsonEnd + 1)
+      }
+    }
 
-    const report = JSON.parse(clean)
+    let report
+    try {
+      report = JSON.parse(clean)
+    } catch (parseErr) {
+      console.error('JSON parse failed. Raw response:', responseText.substring(0, 500))
+      return NextResponse.json({ error: 'Report generation failed — invalid response format' }, { status: 502 })
+    }
 
     // Save to Supabase
     const { data: saved, error: saveErr } = await supabase
