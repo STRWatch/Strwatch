@@ -17,7 +17,7 @@ import io
 import time
 import random
 from datetime import datetime, timezone, date
-from urllib.parse import urljoin
+from urllib.parse import urljoin, quote_plus
 from bs4 import BeautifulSoup
 from typing import List, Optional
 
@@ -48,6 +48,10 @@ HEADERS = {
 MAX_RETRIES = 3
 RETRY_BACKOFF = [5, 15, 30]  # seconds between retries
 REQUEST_TIMEOUT = 45  # increased from 20
+
+# Vercel proxy for .gov sites that block datacenter IPs
+PROXY_BASE = config.PROXY_BASE if hasattr(config, 'PROXY_BASE') else None  # e.g. "https://strwatch.io/api/proxy/fetch"
+PROXY_SECRET = config.PROXY_SECRET if hasattr(config, 'PROXY_SECRET') else None
 
 STR_PAGE = config.AUSTIN_STR_PAGE
 COUNCIL_PAGE = config.AUSTIN_COUNCIL_AGENDA_BASE
@@ -109,7 +113,26 @@ def _fetch_with_retry(url: str, timeout: int = REQUEST_TIMEOUT, stream: bool = F
             return None
 
     log.error("All %d retries failed for %s", MAX_RETRIES, url)
+
+    # Fallback: try Vercel proxy if configured
+    if PROXY_BASE and PROXY_SECRET:
+        return _fetch_via_proxy(url, timeout)
+
     return None
+
+
+def _fetch_via_proxy(url: str, timeout: int = REQUEST_TIMEOUT) -> Optional[requests.Response]:
+    """Fetch via Vercel serverless proxy (for .gov sites blocking datacenter IPs)."""
+    proxy_url = f"{PROXY_BASE}?url={quote_plus(url)}&key={PROXY_SECRET}"
+    try:
+        log.info("Trying Vercel proxy for %s", url)
+        resp = requests.get(proxy_url, timeout=timeout)
+        resp.raise_for_status()
+        log.info("Proxy success for %s (%d bytes)", url, len(resp.content))
+        return resp
+    except Exception as e:
+        log.error("Proxy fetch also failed for %s: %s", url, e)
+        return None
 
 
 # ── HTML hash watcher ─────────────────────────────────────────────────────────
