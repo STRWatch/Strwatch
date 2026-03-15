@@ -1,8 +1,8 @@
 """
 run.py — STRWatch scraper orchestrator.
 
-Run manually: python run.py
-With cron:    0 8 * * * cd /path/to/strwatch-scraper && python run.py
+Run manually: python3 run.py
+With cron:    0 8 * * * cd /path/to/strwatch-scraper && python3 run.py
 
 Flags:
   --full-sync       Re-sync Denver from scratch (use on first run)
@@ -12,6 +12,7 @@ Flags:
   --pages-only      Only run generic page watcher
   --dump-fields     Print Denver SODA API field names (for FIELD_MAP setup)
   --dry-run         Run scrapers but skip sending alerts
+  --reminders-only  Only run deadline reminders
 """
 
 from typing import List
@@ -49,6 +50,7 @@ def run_all(args: List[str]) -> dict:
 
     full_sync = "--full-sync" in args
     dry_run = "--dry-run" in args
+    reminders_only = "--reminders-only" in args
 
     if dry_run:
         log.warning("DRY RUN MODE — alerts will not be sent")
@@ -56,6 +58,18 @@ def run_all(args: List[str]) -> dict:
         import alerts.notify as _n
         _n.send_email = lambda *a, **k: log.info("DRY RUN: would send email: %s", a[0] if a else "")
         _n.send_sms = lambda *a, **k: log.info("DRY RUN: would send SMS: %s", str(a)[:80])
+
+    # ── Reminders only mode ──
+    if reminders_only:
+        banner("Deadline Reminders")
+        try:
+            from alerts import reminders
+            results["reminders"] = reminders.check_and_send_reminders()
+        except Exception as e:
+            log.error("Reminder check failed: %s", e, exc_info=True)
+            results["reminders"] = {"error": str(e)}
+        banner("Run Complete")
+        return results
 
     # ── Denver SODA ──
     if "--nashville-only" not in args and "--austin-only" not in args and "--pages-only" not in args:
@@ -90,7 +104,6 @@ def run_all(args: List[str]) -> dict:
             log.error("Austin scraper failed: %s", e, exc_info=True)
             results["austin"] = {"error": str(e)}
 
-
         banner("Scottsdale ArcGIS Licenses")
         try:
             from scrapers import scottsdale_arcgis
@@ -106,6 +119,7 @@ def run_all(args: List[str]) -> dict:
         except Exception as e:
             log.error("Palm Springs scraper failed: %s", e, exc_info=True)
             results["palm_springs"] = {"error": str(e)}
+
         banner("Austin SODA Licenses")
         try:
             from scrapers import austin_soda
@@ -113,6 +127,15 @@ def run_all(args: List[str]) -> dict:
         except Exception as e:
             log.error("Austin SODA scraper failed: %s", e, exc_info=True)
             results["austin_soda"] = {"error": str(e)}
+
+    # ── Deadline Reminders (runs after all scrapers) ──
+    banner("Deadline Reminders")
+    try:
+        from alerts import reminders
+        results["reminders"] = reminders.check_and_send_reminders()
+    except Exception as e:
+        log.error("Reminder check failed: %s", e, exc_info=True)
+        results["reminders"] = {"error": str(e)}
 
     banner("Run Complete")
     log.info("Run complete")
