@@ -20,7 +20,7 @@ const ALLOWED_DOMAINS = [
   'www.palmspringsca.gov',
 ];
 
-export async function GET(request) {
+export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const key = searchParams.get('key') || request.headers.get('x-proxy-key');
   const targetUrl = searchParams.get('url');
