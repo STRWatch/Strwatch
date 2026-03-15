@@ -14,6 +14,8 @@ import hashlib
 import re
 import requests
 import io
+import time
+import random
 from datetime import datetime, timezone, date
 from urllib.parse import urljoin
 from bs4 import BeautifulSoup
@@ -32,10 +34,20 @@ from alerts import notify
 
 log = logging.getLogger(__name__)
 
+# Browser-like headers — municipal .gov sites behind Cloudflare block bot UAs
 HEADERS = {
-    "User-Agent": "STRWatch/1.0 (regulatory monitoring tool; contact@strwatch.io)",
-    "Accept": "text/html,application/xhtml+xml,application/xml,application/pdf",
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
 }
+
+# Retry config
+MAX_RETRIES = 3
+RETRY_BACKOFF = [5, 15, 30]  # seconds between retries
+REQUEST_TIMEOUT = 45  # increased from 20
 
 STR_PAGE = config.AUSTIN_STR_PAGE
 COUNCIL_PAGE = config.AUSTIN_COUNCIL_AGENDA_BASE
@@ -54,14 +66,61 @@ def _is_deadline_window() -> bool:
     return 0 <= days <= DEADLINE_WARNING_DAYS
 
 
+# ── HTTP fetch with retry ────────────────────────────────────────────────────
+
+def _fetch_with_retry(url: str, timeout: int = REQUEST_TIMEOUT, stream: bool = False) -> Optional[requests.Response]:
+    """
+    Fetch a URL with retry + exponential backoff.
+    Returns Response or None on total failure.
+    """
+    session = requests.Session()
+    session.headers.update(HEADERS)
+
+    for attempt in range(MAX_RETRIES):
+        try:
+            # Small random delay to avoid looking like a bot
+            if attempt > 0:
+                backoff = RETRY_BACKOFF[min(attempt, len(RETRY_BACKOFF) - 1)]
+                jitter = random.uniform(0, backoff * 0.3)
+                wait = backoff + jitter
+                log.info("Retry %d/%d for %s — waiting %.1fs", attempt + 1, MAX_RETRIES, url, wait)
+                time.sleep(wait)
+
+            resp = session.get(url, timeout=timeout, stream=stream)
+            resp.raise_for_status()
+            return resp
+
+        except requests.exceptions.ConnectTimeout:
+            log.warning("Timeout (attempt %d/%d) for %s", attempt + 1, MAX_RETRIES, url)
+        except requests.exceptions.ConnectionError as e:
+            log.warning("Connection error (attempt %d/%d) for %s: %s", attempt + 1, MAX_RETRIES, url, e)
+        except requests.exceptions.HTTPError as e:
+            status = e.response.status_code if e.response else "unknown"
+            if status == 403:
+                log.warning("403 Forbidden (attempt %d/%d) for %s — site may block datacenter IPs",
+                            attempt + 1, MAX_RETRIES, url)
+            elif status == 429:
+                log.warning("429 Rate limited (attempt %d/%d) for %s", attempt + 1, MAX_RETRIES, url)
+            else:
+                log.error("HTTP %s (attempt %d/%d) for %s", status, attempt + 1, MAX_RETRIES, url)
+                return None  # Don't retry on 404, 500, etc.
+        except Exception as e:
+            log.error("Unexpected error (attempt %d/%d) for %s: %s", attempt + 1, MAX_RETRIES, url, e)
+            return None
+
+    log.error("All %d retries failed for %s", MAX_RETRIES, url)
+    return None
+
+
 # ── HTML hash watcher ─────────────────────────────────────────────────────────
 
 def _fetch_page_content(url: str) -> Optional[tuple]:
     """Fetch URL, return (hash, content_length) or None on error."""
-    try:
-        resp = requests.get(url, headers=HEADERS, timeout=20)
-        resp.raise_for_status()
+    resp = _fetch_with_retry(url)
+    if resp is None:
+        return None
 
+    try:
         # Parse to extract main content (ignore nav/footer/dynamic timestamps)
         soup = BeautifulSoup(resp.text, "lxml")
 
@@ -76,11 +135,9 @@ def _fetch_page_content(url: str) -> Optional[tuple]:
         content_hash = hashlib.sha256(content.encode()).hexdigest()
         return content_hash, len(content)
 
-    except requests.exceptions.HTTPError as e:
-        log.error("HTTP error fetching %s: %s", url, e)
     except Exception as e:
-        log.error("Error fetching %s: %s", url, e)
-    return None
+        log.error("Error parsing %s: %s", url, e)
+        return None
 
 
 def watch_page(name: str, url: str, city: str, priority: str = "high") -> bool:
@@ -128,12 +185,15 @@ def _find_agenda_pdf_urls(council_index_url: str) -> List[dict]:
     
     Returns list of {url, meeting_date, title}.
     """
+    resp = _fetch_with_retry(council_index_url)
+    if resp is None:
+        log.error("Could not fetch Austin council index page")
+        return []
+
     try:
-        resp = requests.get(council_index_url, headers=HEADERS, timeout=20)
-        resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "lxml")
     except Exception as e:
-        log.error("Could not fetch Austin council index page: %s", e)
+        log.error("Could not parse Austin council index page: %s", e)
         return []
 
     # Find links to individual meeting pages (e.g. 20260312-reg.htm)
@@ -152,12 +212,15 @@ def _find_agenda_pdf_urls(council_index_url: str) -> List[dict]:
     # Visit the 3 most recent meetings and pull PDF links
     agendas = []
     for meeting_url in meeting_urls[:3]:
+        resp = _fetch_with_retry(meeting_url)
+        if resp is None:
+            log.warning("Could not fetch Austin meeting page %s", meeting_url)
+            continue
+
         try:
-            resp = requests.get(meeting_url, headers=HEADERS, timeout=20)
-            resp.raise_for_status()
             msoup = BeautifulSoup(resp.text, "lxml")
         except Exception as e:
-            log.warning("Could not fetch Austin meeting page %s: %s", meeting_url, e)
+            log.warning("Could not parse Austin meeting page %s: %s", meeting_url, e)
             continue
 
         meeting_date = _extract_date_from_url(meeting_url) or "unknown"
@@ -213,10 +276,11 @@ def _keyword_scan_pdf(pdf_url: str) -> List[str]:
     if not PDF_AVAILABLE:
         return []
 
-    try:
-        resp = requests.get(pdf_url, headers=HEADERS, timeout=30, stream=True)
-        resp.raise_for_status()
+    resp = _fetch_with_retry(pdf_url, timeout=45, stream=True)
+    if resp is None:
+        return []
 
+    try:
         # Only process if it's actually a PDF
         content_type = resp.headers.get("content-type", "")
         if "pdf" not in content_type and not pdf_url.lower().endswith(".pdf"):
