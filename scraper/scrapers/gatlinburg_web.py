@@ -12,10 +12,9 @@ Gatlinburg is one of the highest STR-density markets in the US:
   - Sevier County STRU permit required outside city limits (since Jan 2024)
   - Non-owner properties classified as commercial (40% tax rate)
 
-Data sources:
-  - City STR info: gatlinburgtn.gov/page/overnight-rental-information
-  - TR Permit application: gatlinburgtn.gov/page/apply-for-a-tourist-residency-permit
-  - Sevier County: seviercountytn.gov (STRU inspection program)
+Note: gatlinburgtn.gov uses aggressive bot protection (406/403 on main pages).
+We monitor the PDF document and old-style PHP URLs which are accessible,
+plus the Sevier County site.
 """
 
 import logging
@@ -27,19 +26,19 @@ CITY = "Gatlinburg, TN"
 
 WATCHED_PAGES = [
     {
-        "name": "Gatlinburg — Overnight Rental Information",
-        "url": "https://www.gatlinburgtn.gov/page/overnight-rental-information",
+        "name": "Gatlinburg — Overnight Rental Info (PDF)",
+        "url": "https://www.gatlinburgtn.gov/Finance/New%20Business%20Overnight%20Rental.pdf",
         "priority": "high",
     },
     {
-        "name": "Gatlinburg — Tourist Residency Permit Application",
-        "url": "https://www.gatlinburgtn.gov/page/apply-for-a-tourist-residency-permit",
-        "priority": "high",
-    },
-    {
-        "name": "Gatlinburg — Building & Planning",
-        "url": "https://www.gatlinburgtn.gov/page/building-and-planning",
+        "name": "Gatlinburg — Planning Documents & Zoning",
+        "url": "https://www.gatlinburgtn.gov/departments/planning/planning_documents___information.php",
         "priority": "medium",
+    },
+    {
+        "name": "Sevier County — STR Inspection Program",
+        "url": "https://www.seviercountytn.gov/fire_prevention/stru_inspection_program.php",
+        "priority": "high",
     },
 ]
 
