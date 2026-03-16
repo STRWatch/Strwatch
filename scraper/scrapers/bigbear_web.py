@@ -2,12 +2,21 @@
 scrapers/bigbear_web.py — Big Bear CA STR page monitoring.
 
 Big Bear Lake has strict vacation rental regulations:
-  - Vacation Home Rental (VHR) permit required
+  - Vacation Rental Program registration required (not called "VHR" anymore)
   - Annual inspection and fire safety compliance
-  - Occupancy limits based on bedrooms and septic/sewer capacity
-  - Parking requirements: 1 space per bedroom
-  - Noise ordinances strictly enforced (bear country)
-  - Two jurisdictions: City of Big Bear Lake vs San Bernardino County
+  - Owner and Agent certification exam (25 questions, 100% pass)
+  - Vacation Rental Ordinance 2023-518 is current ordinance
+  - $5,000 fine for operating without license
+  - $2,500 fine for advertising without permit number
+  - TOT: 10% (increased Jan 2025 via Measure P) + 3% TBID
+  - Annual license renewal with 60-day warning system
+  - Off-street paved parking required by 2026
+  - Two jurisdictions: City of Big Bear Lake (92315) vs San Bernardino County
+
+Data sources (verified March 2026):
+  - VR Program: citybigbearlake.com/index.php/en/departments/city-manager/transient-private-home-rental-tphr-program
+  - VR 101 newsletter: citybigbearlake.com/index.php/en/vacation-rental-101
+  - VRO Review: citybigbearlake.com/index.php/en/vro-review
 """
 
 import logging
@@ -17,8 +26,9 @@ log = logging.getLogger(__name__)
 CITY = "Big Bear, CA"
 
 WATCHED_PAGES = [
-    {"name": "Big Bear Lake — Vacation Home Rentals", "url": "https://www.citybigbearlake.com/visitors/vacation-home-rentals", "priority": "high"},
-    {"name": "Big Bear Lake — Code Enforcement", "url": "https://www.citybigbearlake.com/city-hall/code-enforcement", "priority": "medium"},
+    {"name": "Big Bear Lake — Vacation Rental Program", "url": "https://citybigbearlake.com/index.php/en/departments/city-manager/transient-private-home-rental-tphr-program", "priority": "high"},
+    {"name": "Big Bear Lake — Vacation Rental 101", "url": "https://www.citybigbearlake.com/index.php/en/vacation-rental-101", "priority": "high"},
+    {"name": "Big Bear Lake — VRO Review & Ordinance", "url": "https://www.citybigbearlake.com/index.php/en/vro-review", "priority": "medium"},
 ]
 
 def run():

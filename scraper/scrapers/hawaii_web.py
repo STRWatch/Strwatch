@@ -2,12 +2,19 @@
 scrapers/hawaii_web.py — Honolulu + Maui HI STR page monitoring.
 
 Hawaii has extremely strict STR regulations:
-  - Honolulu (Oahu): 90-day minimum in residential zones, STRs only in resort areas
-  - Bill 41 (2022): created registration system, $500 fine/day for violations
+  - Honolulu (Oahu): STRs only in resort-zoned areas + specific apartment zones
+  - Ordinance 22-7 (2022): created registration system, NUC renewals Sept 1-Oct 15
+  - Ordinance 25-52: latest amendments to STR rules
+  - Registration required for all BnBs and TVUs, annual renewal
   - Maui County: moratorium on new STR permits in many areas
   - Both require state GET (4.5%) + TAT (10.25%) + county surcharge
-  - Aggressive enforcement with dedicated staff and third-party monitoring
+  - Aggressive enforcement with dedicated STR Enforcement Branch
   - Platforms required to verify permit numbers
+
+Data sources (verified March 2026):
+  - Honolulu STR main: honolulu.gov/dpp/permitting/str/
+  - Honolulu STR FAQ: honolulu.gov/dpp/permitting/str/str-faq/
+  - Maui County STRH: mauicounty.gov/2553/Short-Term-Rental-Homes-STRH
 """
 
 import logging
@@ -17,8 +24,8 @@ log = logging.getLogger(__name__)
 CITY = "Honolulu, HI"
 
 WATCHED_PAGES = [
-    {"name": "Honolulu — Short-Term Rentals", "url": "https://www.honolulu.gov/dpp-str", "priority": "high"},
-    {"name": "Honolulu — DPP STR Registration", "url": "https://www.honolulu.gov/dpp/short-term-rental-registration.html", "priority": "high"},
+    {"name": "Honolulu — Short-Term Rentals", "url": "https://www.honolulu.gov/dpp/permitting/str/", "priority": "high"},
+    {"name": "Honolulu — STR FAQ & Registration", "url": "https://www.honolulu.gov/dpp/permitting/str/str-faq/", "priority": "high"},
     {"name": "Maui County — Short-Term Rental Info", "url": "https://www.mauicounty.gov/2553/Short-Term-Rental-Homes-STRH", "priority": "high"},
 ]
 

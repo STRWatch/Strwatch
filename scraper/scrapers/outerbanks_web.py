@@ -5,10 +5,17 @@ Outer Banks is one of the oldest and largest vacation rental markets in the US:
   - Multiple jurisdictions: Dare County, Currituck County, Kill Devil Hills,
     Nags Head, Kitty Hawk, Duck, Southern Shores, Manteo
   - Generally STR-friendly but increasing regulation
-  - NC state preemption limits some local restrictions
-  - 6.75% state sales tax + local occupancy tax (varies 5-6%)
-  - Safety inspections increasingly required
-  - Septic/well capacity limits occupancy in many areas
+  - Nags Head: STR registration required ($25), $100 fine + $50/day if unregistered
+  - Kill Devil Hills: Vacation rental permit through Planning & Inspections
+  - Dare County: 6% occupancy tax on all rentals >14 days/year
+  - NC Vacation Rental Act: written agreement required for all guests
+  - NC state preemption limits some local restrictions (SB 291 pending 2025-26)
+  - 6.75% state sales tax + 6% county occupancy tax = ~12.75% total
+
+Data sources (verified March 2026):
+  - Dare County occupancy tax: darenc.gov/departments/tax-department/occupancy-tax
+  - Nags Head STR registration: nagsheadnc.gov/1013/Short-Term-Rentals
+  - Kill Devil Hills planning: kdhnc.com/108/Planning-and-Inspections
 """
 
 import logging
@@ -18,9 +25,9 @@ log = logging.getLogger(__name__)
 CITY = "Outer Banks, NC"
 
 WATCHED_PAGES = [
-    {"name": "Dare County — Rental Cottage Info", "url": "https://www.darenc.com/departments/planning/rental-cottage-compliance", "priority": "high"},
-    {"name": "Kill Devil Hills — Vacation Rentals", "url": "https://www.kdhnc.com/378/Vacation-Rental-Program", "priority": "high"},
-    {"name": "Nags Head — Cottage Rentals", "url": "https://www.nagsheadnc.gov/314/Rental-Cottage-Information", "priority": "medium"},
+    {"name": "Dare County — Occupancy Tax", "url": "https://www.darenc.gov/departments/tax-department/occupancy-tax", "priority": "high"},
+    {"name": "Nags Head — Short-Term Rentals", "url": "https://www.nagsheadnc.gov/1013/Short-Term-Rentals", "priority": "high"},
+    {"name": "Kill Devil Hills — Planning & Inspections", "url": "https://www.kdhnc.com/108/Planning-and-Inspections", "priority": "medium"},
 ]
 
 def run():
