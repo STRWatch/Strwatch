@@ -1,12 +1,13 @@
 """
 scrapers/austin_web.py — Austin STR page monitoring + council agenda PDF parsing.
 
-Two jobs:
-1. Hash-watch austintexas.gov/department/short-term-rentals for any changes
-2. Download and keyword-scan council meeting agenda PDFs for STR mentions
+Also contains shared fetch infrastructure used by all page watchers:
+  - _fetch_with_retry(): 3 retries with backoff + browser UA
+  - _fetch_via_proxy(): Vercel serverless proxy fallback
+  - _fetch_via_apify(): Apify headless browser fallback (for Cloudflare JS challenges)
+  - watch_page(): Hash-diff page watcher
 
-Austin has a hard July 1, 2026 deadline (platform enforcement).
-This scraper escalates to daily monitoring in the 30-day window before that date.
+Fallback chain: direct fetch → Vercel proxy → Apify headless browser
 """
 
 import logging
@@ -50,15 +51,18 @@ RETRY_BACKOFF = [5, 15, 30]  # seconds between retries
 REQUEST_TIMEOUT = 45  # increased from 20
 
 # Vercel proxy for .gov sites that block datacenter IPs
-PROXY_BASE = config.PROXY_BASE if hasattr(config, 'PROXY_BASE') else None  # e.g. "https://strwatch.io/api/proxy/fetch"
+PROXY_BASE = config.PROXY_BASE if hasattr(config, 'PROXY_BASE') else None
 PROXY_SECRET = config.PROXY_SECRET if hasattr(config, 'PROXY_SECRET') else None
+
+# Apify headless browser for sites with Cloudflare JS challenges
+APIFY_TOKEN = config.APIFY_TOKEN if hasattr(config, 'APIFY_TOKEN') else None
 
 STR_PAGE = config.AUSTIN_STR_PAGE
 COUNCIL_PAGE = config.AUSTIN_COUNCIL_AGENDA_BASE
 
 # July 1, 2026 enforcement cliff
 ENFORCEMENT_DEADLINE = date(2026, 7, 1)
-DEADLINE_WARNING_DAYS = 30  # Start daily monitoring this many days before
+DEADLINE_WARNING_DAYS = 30
 
 
 def _days_to_deadline() -> int:
@@ -70,19 +74,18 @@ def _is_deadline_window() -> bool:
     return 0 <= days <= DEADLINE_WARNING_DAYS
 
 
-# ── HTTP fetch with retry ────────────────────────────────────────────────────
+# ── HTTP fetch with 3-tier fallback ──────────────────────────────────────────
 
 def _fetch_with_retry(url: str, timeout: int = REQUEST_TIMEOUT, stream: bool = False) -> Optional[requests.Response]:
     """
     Fetch a URL with retry + exponential backoff.
-    Returns Response or None on total failure.
+    Fallback chain: direct → Vercel proxy → Apify headless browser.
     """
     session = requests.Session()
     session.headers.update(HEADERS)
 
     for attempt in range(MAX_RETRIES):
         try:
-            # Small random delay to avoid looking like a bot
             if attempt > 0:
                 backoff = RETRY_BACKOFF[min(attempt, len(RETRY_BACKOFF) - 1)]
                 jitter = random.uniform(0, backoff * 0.3)
@@ -101,23 +104,37 @@ def _fetch_with_retry(url: str, timeout: int = REQUEST_TIMEOUT, stream: bool = F
         except requests.exceptions.HTTPError as e:
             status = e.response.status_code if e.response else "unknown"
             if status == 403:
-                log.warning("403 Forbidden (attempt %d/%d) for %s — site may block datacenter IPs",
+                log.warning("403 Forbidden (attempt %d/%d) for %s — trying fallbacks",
                             attempt + 1, MAX_RETRIES, url)
+                break  # Skip remaining retries, go straight to fallbacks
+            elif status == 406:
+                log.warning("406 Not Acceptable (attempt %d/%d) for %s — trying fallbacks",
+                            attempt + 1, MAX_RETRIES, url)
+                break  # Skip remaining retries, go straight to fallbacks
             elif status == 429:
                 log.warning("429 Rate limited (attempt %d/%d) for %s", attempt + 1, MAX_RETRIES, url)
             else:
                 log.error("HTTP %s (attempt %d/%d) for %s", status, attempt + 1, MAX_RETRIES, url)
-                return None  # Don't retry on 404, 500, etc.
+                break  # Don't retry on 404, 500 etc. but still try fallbacks
         except Exception as e:
             log.error("Unexpected error (attempt %d/%d) for %s: %s", attempt + 1, MAX_RETRIES, url, e)
-            return None
+            break  # Try fallbacks
 
-    log.error("All %d retries failed for %s", MAX_RETRIES, url)
+    log.error("Direct fetch failed for %s — trying fallbacks", url)
 
-    # Fallback: try Vercel proxy if configured
+    # Fallback 1: Vercel proxy
     if PROXY_BASE and PROXY_SECRET:
-        return _fetch_via_proxy(url, timeout)
+        result = _fetch_via_proxy(url, timeout)
+        if result is not None:
+            return result
 
+    # Fallback 2: Apify headless browser
+    if APIFY_TOKEN:
+        result = _fetch_via_apify(url)
+        if result is not None:
+            return result
+
+    log.error("All fallbacks failed for %s", url)
     return None
 
 
@@ -131,7 +148,57 @@ def _fetch_via_proxy(url: str, timeout: int = REQUEST_TIMEOUT) -> Optional[reque
         log.info("Proxy success for %s (%d bytes)", url, len(resp.content))
         return resp
     except Exception as e:
-        log.error("Proxy fetch also failed for %s: %s", url, e)
+        log.warning("Proxy also failed for %s: %s", url, e)
+        return None
+
+
+def _fetch_via_apify(url: str) -> Optional[requests.Response]:
+    """
+    Fetch via Apify RAG Web Browser actor (headless browser).
+    Handles Cloudflare JS challenges that block both direct and proxy fetches.
+    Returns a fake Response object with the page text content.
+    """
+    try:
+        log.info("Trying Apify headless browser for %s", url)
+
+        # Call Apify RAG Web Browser actor via REST API
+        api_url = "https://api.apify.com/v2/acts/apify~rag-web-browser/run-sync-get-dataset-items"
+        params = {"token": APIFY_TOKEN}
+        payload = {
+            "query": url,
+            "maxResults": 1,
+            "outputFormats": ["text"],
+        }
+
+        resp = requests.post(api_url, json=payload, params=params, timeout=120)
+        resp.raise_for_status()
+
+        results = resp.json()
+        if not results or len(results) == 0:
+            log.warning("Apify returned empty results for %s", url)
+            return None
+
+        item = results[0]
+        status_code = item.get("crawl", {}).get("httpStatusCode", 0)
+        text_content = item.get("text", "")
+
+        if status_code != 200 or not text_content:
+            log.warning("Apify fetch failed for %s: status=%s, content_len=%d",
+                        url, status_code, len(text_content))
+            return None
+
+        # Create a fake Response object so watch_page can process it
+        fake_resp = requests.models.Response()
+        fake_resp.status_code = 200
+        fake_resp._content = text_content.encode("utf-8")
+        fake_resp.headers["content-type"] = "text/html; charset=utf-8"
+        fake_resp.encoding = "utf-8"
+
+        log.info("Apify success for %s (%d chars)", url, len(text_content))
+        return fake_resp
+
+    except Exception as e:
+        log.error("Apify fetch failed for %s: %s", url, e)
         return None
 
 
@@ -144,14 +211,11 @@ def _fetch_page_content(url: str) -> Optional[tuple]:
         return None
 
     try:
-        # Parse to extract main content (ignore nav/footer/dynamic timestamps)
         soup = BeautifulSoup(resp.text, "lxml")
 
-        # Remove navigation, footer, scripts, style — we only care about content changes
         for tag in soup(["nav", "footer", "script", "style", "header"]):
             tag.decompose()
 
-        # Extract main content area if possible
         main = soup.find("main") or soup.find(id="content") or soup.find(class_="content") or soup.body
         content = main.get_text(separator=" ", strip=True) if main else resp.text
 
@@ -177,7 +241,6 @@ def watch_page(name: str, url: str, city: str, priority: str = "high") -> bool:
     last = store.get_last_snapshot(url)
 
     if last is None:
-        # First time seeing this page — save baseline, no alert
         store.save_snapshot(url, name, city, current_hash, content_len, changed=False)
         log.info("Baseline saved for: %s", name)
         return False
@@ -187,7 +250,6 @@ def watch_page(name: str, url: str, city: str, priority: str = "high") -> bool:
         log.debug("No change: %s", name)
         return False
 
-    # Change detected!
     store.save_snapshot(url, name, city, current_hash, content_len, changed=True)
     log.info("CHANGE DETECTED: %s | old_len=%d new_len=%d",
              name, last.get("content_len", 0), content_len)
@@ -198,16 +260,6 @@ def watch_page(name: str, url: str, city: str, priority: str = "high") -> bool:
 # ── Austin council agenda PDF parser ─────────────────────────────────────────
 
 def _find_agenda_pdf_urls(council_index_url: str) -> List[dict]:
-    """
-    Scrape the Austin council meetings year-index page to find recent meeting pages,
-    then pull agenda PDF links from each meeting page.
-    
-    Austin's new URL structure (2026+):
-      Index: /department/city-council/2026/2026_council_index.htm
-      Meeting: /department/city-council/2026/20260312-reg.htm
-    
-    Returns list of {url, meeting_date, title}.
-    """
     resp = _fetch_with_retry(council_index_url)
     if resp is None:
         log.error("Could not fetch Austin council index page")
@@ -219,12 +271,10 @@ def _find_agenda_pdf_urls(council_index_url: str) -> List[dict]:
         log.error("Could not parse Austin council index page: %s", e)
         return []
 
-    # Find links to individual meeting pages (e.g. 20260312-reg.htm)
     base = "https://www.austintexas.gov"
     meeting_urls = []
     for a in soup.find_all("a", href=True):
         href = a["href"]
-        # Match year-based meeting URLs like /department/city-council/2026/20260312-reg.htm
         if re.search(r'/city-council/\d{4}/\d{8}-reg\.htm', href):
             full_url = urljoin(base, href)
             if full_url not in meeting_urls:
@@ -232,12 +282,10 @@ def _find_agenda_pdf_urls(council_index_url: str) -> List[dict]:
 
     log.info("Found %d council meeting pages on Austin index", len(meeting_urls))
 
-    # Visit the 3 most recent meetings and pull PDF links
     agendas = []
     for meeting_url in meeting_urls[:3]:
         resp = _fetch_with_retry(meeting_url)
         if resp is None:
-            log.warning("Could not fetch Austin meeting page %s", meeting_url)
             continue
 
         try:
@@ -271,7 +319,6 @@ def _find_agenda_pdf_urls(council_index_url: str) -> List[dict]:
 
 
 def _extract_date_from_text(text: str) -> Optional[str]:
-    """Try to extract a date string from link text."""
     patterns = [
         r"(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})",
         r"(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]* \d{1,2},? \d{4}",
@@ -284,7 +331,6 @@ def _extract_date_from_text(text: str) -> Optional[str]:
 
 
 def _extract_date_from_url(url: str) -> Optional[str]:
-    """Try to extract a date from a URL path."""
     m = re.search(r"(\d{4})[_-]?(\d{2})[_-]?(\d{2})", url)
     if m:
         return f"{m.group(1)}-{m.group(2)}-{m.group(3)}"
@@ -292,10 +338,6 @@ def _extract_date_from_url(url: str) -> Optional[str]:
 
 
 def _keyword_scan_pdf(pdf_url: str) -> List[str]:
-    """
-    Download and scan a PDF for STR keywords.
-    Returns list of matched keywords.
-    """
     if not PDF_AVAILABLE:
         return []
 
@@ -304,7 +346,6 @@ def _keyword_scan_pdf(pdf_url: str) -> List[str]:
         return []
 
     try:
-        # Only process if it's actually a PDF
         content_type = resp.headers.get("content-type", "")
         if "pdf" not in content_type and not pdf_url.lower().endswith(".pdf"):
             log.warning("Not a PDF: %s (%s)", pdf_url, content_type)
@@ -313,7 +354,7 @@ def _keyword_scan_pdf(pdf_url: str) -> List[str]:
         pdf_bytes = io.BytesIO(resp.content)
         full_text = ""
         with pdfplumber.open(pdf_bytes) as pdf:
-            for page in pdf.pages[:20]:  # First 20 pages max
+            for page in pdf.pages[:20]:
                 text = page.extract_text()
                 if text:
                     full_text += text + " "
@@ -335,7 +376,6 @@ def _keyword_scan_pdf(pdf_url: str) -> List[str]:
 
 
 def scan_austin_council_agendas():
-    """Download and scan recent Austin council agenda PDFs for STR mentions."""
     log.info("Scanning Austin council agenda PDFs...")
 
     agendas = _find_agenda_pdf_urls(COUNCIL_PAGE)
@@ -346,12 +386,10 @@ def scan_austin_council_agendas():
         meeting_date = agenda.get("meeting_date", "unknown")
         title = agenda.get("title", pdf_url.split("/")[-1])
 
-        # Use PDF URL as bill_id for dedup
         keywords = _keyword_scan_pdf(pdf_url)
         if not keywords:
             continue
 
-        # Generate a stable bill_id from the PDF URL
         bill_id = "AGENDA-" + hashlib.md5(pdf_url.encode()).hexdigest()[:8].upper()
 
         is_new = store.save_legislation(
@@ -389,10 +427,6 @@ def scan_austin_council_agendas():
 
 
 def check_deadline_proximity():
-    """
-    If we're within 30 days of the July 1 enforcement deadline,
-    send a reminder alert (once per week).
-    """
     days = _days_to_deadline()
     if days < 0:
         log.info("Austin July 1 deadline has passed (%d days ago)", abs(days))
@@ -401,7 +435,6 @@ def check_deadline_proximity():
     if not _is_deadline_window():
         return
 
-    # Weekly reminder during the window
     week_num = days // 7
     alert_key = f"austin_deadline_week_{week_num}"
 
@@ -441,13 +474,11 @@ def check_deadline_proximity():
 # ── Main run function ─────────────────────────────────────────────────────────
 
 def run():
-    """Main entry point for Austin scraper."""
     log.info("=== Austin scraper starting ===")
 
     changes = 0
     new_agenda_items = 0
 
-    # 1. Watch key pages
     for page in config.WATCHED_PAGES:
         if page["city"] != "Austin":
             continue
@@ -455,13 +486,11 @@ def run():
         if changed:
             changes += 1
 
-    # 2. Scan council agendas for STR mentions
     try:
         new_agenda_items = scan_austin_council_agendas()
     except Exception as e:
         log.error("Austin agenda scan failed: %s", e)
 
-    # 3. Check deadline proximity
     check_deadline_proximity()
 
     log.info("Austin scraper done — page changes: %d | new agenda items: %d | deadline: %d days",
