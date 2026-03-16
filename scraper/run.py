@@ -339,6 +339,16 @@ def run_all(args: List[str]) -> dict:
             log.error("Lake Tahoe scraper failed: %s", e, exc_info=True)
             results["laketahoe"] = {"error": str(e)}
 
+        # ── State-Level Pages (covers 20+ markets) ──
+
+        banner("State-Level Pages (FL, HI, TN, AZ, GA)")
+        try:
+            from scrapers import state_pages_web
+            results["state_pages"] = state_pages_web.run()
+        except Exception as e:
+            log.error("State pages scraper failed: %s", e, exc_info=True)
+            results["state_pages"] = {"error": str(e)}
+
     # ── Deadline Reminders (runs after all scrapers) ──
     banner("Deadline Reminders")
     try:
