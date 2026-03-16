@@ -217,6 +217,46 @@ def run_all(args: List[str]) -> dict:
             log.error("Sedona scraper failed: %s", e, exc_info=True)
             results["sedona"] = {"error": str(e)}
 
+        banner("Park City UT Page Watcher")
+        try:
+            from scrapers import parkcity_web
+            results["parkcity"] = parkcity_web.run()
+        except Exception as e:
+            log.error("Park City scraper failed: %s", e, exc_info=True)
+            results["parkcity"] = {"error": str(e)}
+
+        banner("Breckenridge CO Page Watcher")
+        try:
+            from scrapers import breckenridge_web
+            results["breckenridge"] = breckenridge_web.run()
+        except Exception as e:
+            log.error("Breckenridge scraper failed: %s", e, exc_info=True)
+            results["breckenridge"] = {"error": str(e)}
+
+        banner("Big Bear CA Page Watcher")
+        try:
+            from scrapers import bigbear_web
+            results["bigbear"] = bigbear_web.run()
+        except Exception as e:
+            log.error("Big Bear scraper failed: %s", e, exc_info=True)
+            results["bigbear"] = {"error": str(e)}
+
+        banner("Hawaii Page Watcher")
+        try:
+            from scrapers import hawaii_web
+            results["hawaii"] = hawaii_web.run()
+        except Exception as e:
+            log.error("Hawaii scraper failed: %s", e, exc_info=True)
+            results["hawaii"] = {"error": str(e)}
+
+        banner("Outer Banks NC Page Watcher")
+        try:
+            from scrapers import outerbanks_web
+            results["outerbanks"] = outerbanks_web.run()
+        except Exception as e:
+            log.error("Outer Banks scraper failed: %s", e, exc_info=True)
+            results["outerbanks"] = {"error": str(e)}
+
     # ── Deadline Reminders (runs after all scrapers) ──
     banner("Deadline Reminders")
     try:

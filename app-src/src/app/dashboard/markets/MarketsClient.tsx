@@ -19,6 +19,11 @@ const AVAILABLE_MARKETS = [
   { city: 'Asheville, NC', description: 'Whole-home STRs banned in residential · Homestays only · Active enforcement' },
   { city: 'Key West, FL', description: 'Finite transient licenses · $400K+ on secondary market · 12.5% tax' },
   { city: 'Sedona, AZ', description: 'Annual permit · 1,200+ STRs · Housing emergency · 24/7 hotline' },
+  { city: 'Park City, UT', description: 'Nightly Rental License · Resort zones only · Building inspection required' },
+  { city: 'Breckenridge, CO', description: '4 STR zones with caps · $250/yr license · Waitlists active' },
+  { city: 'Big Bear, CA', description: 'VHR permit · Annual inspection · Mountain resort market' },
+  { city: 'Honolulu, HI', description: '90-day minimum in residential · $500/day fines · Bill 41 enforcement' },
+  { city: 'Outer Banks, NC', description: 'Multi-jurisdiction · Largest US vacation rental market · Increasing regulation' },
 ]
 
 export default function MarketsClient({
