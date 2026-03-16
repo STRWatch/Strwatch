@@ -17,6 +17,8 @@ const AVAILABLE_MARKETS = [
   { city: 'Miami Beach, FL', description: '$20K+ fines · Strict zoning · 4 licenses required · Page monitoring' },
   { city: 'Gatlinburg, TN', description: 'Tourist Residency Permit · Massive STR density · Smoky Mountains' },
   { city: 'Asheville, NC', description: 'Whole-home STRs banned in residential · Homestays only · Active enforcement' },
+  { city: 'Key West, FL', description: 'Finite transient licenses · $400K+ on secondary market · 12.5% tax' },
+  { city: 'Sedona, AZ', description: 'Annual permit · 1,200+ STRs · Housing emergency · 24/7 hotline' },
 ]
 
 export default function MarketsClient({

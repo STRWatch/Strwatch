@@ -201,6 +201,22 @@ def run_all(args: List[str]) -> dict:
             log.error("Asheville scraper failed: %s", e, exc_info=True)
             results["asheville"] = {"error": str(e)}
 
+        banner("Key West FL Page Watcher")
+        try:
+            from scrapers import keywest_web
+            results["keywest"] = keywest_web.run()
+        except Exception as e:
+            log.error("Key West scraper failed: %s", e, exc_info=True)
+            results["keywest"] = {"error": str(e)}
+
+        banner("Sedona AZ Page Watcher")
+        try:
+            from scrapers import sedona_web
+            results["sedona"] = sedona_web.run()
+        except Exception as e:
+            log.error("Sedona scraper failed: %s", e, exc_info=True)
+            results["sedona"] = {"error": str(e)}
+
     # ── Deadline Reminders (runs after all scrapers) ──
     banner("Deadline Reminders")
     try:
