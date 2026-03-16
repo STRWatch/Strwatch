@@ -257,6 +257,88 @@ def run_all(args: List[str]) -> dict:
             log.error("Outer Banks scraper failed: %s", e, exc_info=True)
             results["outerbanks"] = {"error": str(e)}
 
+        # ── Markets #21-30 (added March 2026) ──
+
+        banner("New York City NY Page Watcher")
+        try:
+            from scrapers import nyc_web
+            results["nyc"] = nyc_web.run()
+        except Exception as e:
+            log.error("NYC scraper failed: %s", e, exc_info=True)
+            results["nyc"] = {"error": str(e)}
+
+        banner("Los Angeles CA Page Watcher")
+        try:
+            from scrapers import la_web
+            results["la"] = la_web.run()
+        except Exception as e:
+            log.error("LA scraper failed: %s", e, exc_info=True)
+            results["la"] = {"error": str(e)}
+
+        banner("Orlando FL Page Watcher")
+        try:
+            from scrapers import orlando_web
+            results["orlando"] = orlando_web.run()
+        except Exception as e:
+            log.error("Orlando scraper failed: %s", e, exc_info=True)
+            results["orlando"] = {"error": str(e)}
+
+        banner("Las Vegas NV Page Watcher")
+        try:
+            from scrapers import lasvegas_web
+            results["lasvegas"] = lasvegas_web.run()
+        except Exception as e:
+            log.error("Las Vegas scraper failed: %s", e, exc_info=True)
+            results["lasvegas"] = {"error": str(e)}
+
+        banner("Boston MA Page Watcher")
+        try:
+            from scrapers import boston_web
+            results["boston"] = boston_web.run()
+        except Exception as e:
+            log.error("Boston scraper failed: %s", e, exc_info=True)
+            results["boston"] = {"error": str(e)}
+
+        banner("Portland OR Page Watcher")
+        try:
+            from scrapers import portland_web
+            results["portland"] = portland_web.run()
+        except Exception as e:
+            log.error("Portland scraper failed: %s", e, exc_info=True)
+            results["portland"] = {"error": str(e)}
+
+        banner("Destin/30A FL Page Watcher")
+        try:
+            from scrapers import destin_web
+            results["destin"] = destin_web.run()
+        except Exception as e:
+            log.error("Destin scraper failed: %s", e, exc_info=True)
+            results["destin"] = {"error": str(e)}
+
+        banner("Maui HI Page Watcher")
+        try:
+            from scrapers import maui_web
+            results["maui"] = maui_web.run()
+        except Exception as e:
+            log.error("Maui scraper failed: %s", e, exc_info=True)
+            results["maui"] = {"error": str(e)}
+
+        banner("Tybee Island GA Page Watcher")
+        try:
+            from scrapers import tybee_web
+            results["tybee"] = tybee_web.run()
+        except Exception as e:
+            log.error("Tybee Island scraper failed: %s", e, exc_info=True)
+            results["tybee"] = {"error": str(e)}
+
+        banner("Lake Tahoe CA Page Watcher")
+        try:
+            from scrapers import laketahoe_web
+            results["laketahoe"] = laketahoe_web.run()
+        except Exception as e:
+            log.error("Lake Tahoe scraper failed: %s", e, exc_info=True)
+            results["laketahoe"] = {"error": str(e)}
+
     # ── Deadline Reminders (runs after all scrapers) ──
     banner("Deadline Reminders")
     try:
