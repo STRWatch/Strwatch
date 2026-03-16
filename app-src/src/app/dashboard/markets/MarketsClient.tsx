@@ -1,30 +1,64 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef, useEffect } from 'react'
 import { addMarket, removeMarket } from './actions'
 
-const AVAILABLE_MARKETS = [
-  { city: 'Nashville, TN', description: 'Active council monitoring · Legistar API' },
-  { city: 'Austin, TX',    description: 'July 1 enforcement deadline · 2,744 licenses tracked' },
-  { city: 'Denver, CO',    description: '7,449 licenses tracked · SODA API' },
-  { city: 'Scottsdale, AZ', description: '2,999 licenses tracked · ArcGIS API' },
-  { city: 'Palm Springs, CA', description: 'PrimeGov council portal · Active enforcement' },
-  { city: 'New Orleans, LA', description: '1,300 licenses tracked · Legistar + SODA API' },
-  { city: 'San Diego, CA', description: '7,954 STRO licenses · 4-tier system · Page monitoring' },
-  { city: 'Charleston, SC', description: 'Strict zoning overlay · ~700 permits · Page monitoring' },
-  { city: 'Savannah, GA', description: 'STVR overlay district · 20% ward cap · Deckard portal' },
-  { city: 'San Francisco, CA', description: '$925 app fee · 90-night cap · 14% TOT · Page monitoring' },
-  { city: 'Miami Beach, FL', description: '$20K+ fines · Strict zoning · 4 licenses required · Page monitoring' },
-  { city: 'Gatlinburg, TN', description: 'Tourist Residency Permit · Massive STR density · Smoky Mountains' },
-  { city: 'Asheville, NC', description: 'Whole-home STRs banned in residential · Homestays only · Active enforcement' },
-  { city: 'Key West, FL', description: 'Finite transient licenses · $400K+ on secondary market · 12.5% tax' },
-  { city: 'Sedona, AZ', description: 'Annual permit · 1,200+ STRs · Housing emergency · 24/7 hotline' },
-  { city: 'Park City, UT', description: 'Nightly Rental License · Resort zones only · Building inspection required' },
-  { city: 'Breckenridge, CO', description: '4 STR zones with caps · $250/yr license · Waitlists active' },
-  { city: 'Big Bear, CA', description: 'VHR permit · Annual inspection · Mountain resort market' },
-  { city: 'Honolulu, HI', description: '90-day minimum in residential · $500/day fines · Bill 41 enforcement' },
-  { city: 'Outer Banks, NC', description: 'Multi-jurisdiction · Largest US vacation rental market · Increasing regulation' },
+// ── All 30 markets with zip prefixes for resolution ─────────────────────────
+const MARKETS = [
+  { city: 'Nashville, TN',       zips: ['370','371','372','373','374','375','376','377','378','379'], desc: 'Legistar API · Permit tiers · Active enforcement' },
+  { city: 'Austin, TX',          zips: ['737','786','787','788','789'], desc: 'July 1 deadline · 2,744 licenses · Council agenda scanning' },
+  { city: 'Denver, CO',          zips: ['800','801','802','803','804','805'], desc: '7,449 licenses · SODA API · Legistar council monitoring' },
+  { city: 'Scottsdale, AZ',      zips: ['852'], desc: '2,999 licenses · ArcGIS API · TPT lodging tax' },
+  { city: 'Palm Springs, CA',    zips: ['922'], desc: 'PrimeGov portal · Active enforcement · TOT' },
+  { city: 'New Orleans, LA',     zips: ['700','701'], desc: '1,300 licenses · Legistar + SODA API' },
+  { city: 'San Diego, CA',       zips: ['919','920','921'], desc: '7,954 STRO licenses · 4-tier system' },
+  { city: 'Charleston, SC',      zips: ['294'], desc: 'Strict zoning overlay · ~700 permits' },
+  { city: 'Savannah, GA',        zips: ['314'], desc: 'STVR overlay · 20% ward cap · 8% hotel/motel tax' },
+  { city: 'San Francisco, CA',   zips: ['941'], desc: '$925 app fee · 90-night cap · Legistar monitoring' },
+  { city: 'Miami Beach, FL',     zips: ['331'], desc: '$20K+ fines · Strict zoning · 4 licenses required' },
+  { city: 'Gatlinburg, TN',      zips: ['377'], desc: 'Tourist Residency Permit · Smoky Mountains' },
+  { city: 'Asheville, NC',       zips: ['287','288'], desc: 'Whole-home STRs banned residential · Homestays only' },
+  { city: 'Key West, FL',        zips: ['330','340'], desc: 'Finite transient licenses · 5% TDT · Monroe County' },
+  { city: 'Sedona, AZ',          zips: ['863'], desc: 'Annual permit · 1,200+ STRs · 24/7 hotline' },
+  { city: 'Park City, UT',       zips: ['840'], desc: 'Nightly Rental License · Resort zones only' },
+  { city: 'Breckenridge, CO',    zips: ['804'], desc: '4 STR zones with caps · Waitlists active' },
+  { city: 'Big Bear, CA',        zips: ['923'], desc: 'SB County permit · $1,144 app fee · Noise monitoring' },
+  { city: 'Honolulu, HI',        zips: ['968'], desc: '90-day minimum residential · $500/day fines' },
+  { city: 'Outer Banks, NC',     zips: ['279','272'], desc: 'Multi-jurisdiction · Largest US VR market' },
+  { city: 'NYC, NY',             zips: ['100','101','102','103','104','110','111','112','113','114','116'], desc: 'OSE registration · Local Law 18 · Strict enforcement' },
+  { city: 'Los Angeles, CA',     zips: ['900','901','902','903','904','905','906','907','908','910','911','912','913','914','915','916'], desc: 'Home Sharing Ordinance · $850 registration · HSO zones' },
+  { city: 'Portland, OR',        zips: ['970','971','972'], desc: '11.5% TLT · $4/night fee · Quarterly filing' },
+  { city: 'Orlando, FL',         zips: ['328','327','347','348'], desc: 'Home Sharing Registration · Orange County TDT' },
+  { city: 'Las Vegas, NV',       zips: ['889','890','891'], desc: 'Clark County STR licensing · Business license required' },
+  { city: 'Boston, MA',          zips: ['021','022'], desc: 'ISD registration · Legistar council monitoring' },
+  { city: 'Maui, HI',            zips: ['967'], desc: 'STRH permits · B&B permits · Planning commission' },
+  { city: 'Lake Tahoe, CA',      zips: ['961','960','894','895'], desc: 'El Dorado VHR · Placer County · Multi-jurisdiction' },
+  { city: 'Tybee Island, GA',    zips: ['313'], desc: 'STVR certificate · Chatham County · GA hotel/motel fee' },
+  { city: 'Destin, FL',          zips: ['325'], desc: '6% TDT · Okaloosa County · FL DBPR license' },
 ]
+
+function resolveMarkets(input: string): typeof MARKETS {
+  const q = input.trim().toLowerCase()
+  if (!q) return []
+
+  // Check if input looks like a zip code (starts with digits)
+  const zipMatch = q.replace(/\s/g, '').match(/^(\d{3,5})/)
+  if (zipMatch) {
+    const prefix = zipMatch[1].slice(0, 3)
+    const matches = MARKETS.filter(m => m.zips.includes(prefix))
+    if (matches.length > 0) return matches
+  }
+
+  // Otherwise do city/state text matching
+  return MARKETS.filter(m => {
+    const city = m.city.toLowerCase()
+    const words = q.split(/[\s,]+/).filter(Boolean)
+    return words.every(w => city.includes(w))
+  })
+}
+
+// Popular markets shown as quick-pick chips
+const POPULAR = ['Nashville, TN', 'Austin, TX', 'Denver, CO', 'Miami Beach, FL', 'San Diego, CA', 'San Francisco, CA', 'NYC, NY', 'Los Angeles, CA']
 
 export default function MarketsClient({
   userId, savedCities, tier, maxMarkets, trialDaysLeft, isTrialActive, isPaid,
@@ -35,7 +69,37 @@ export default function MarketsClient({
   const [cities, setCities] = useState<string[]>(savedCities)
   const [isPending, startTransition] = useTransition()
   const [feedback, setFeedback] = useState<{ city: string; msg: string } | null>(null)
+  const [query, setQuery] = useState('')
+  const [suggestions, setSuggestions] = useState<typeof MARKETS>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
   const isFree = tier === 'free'
+  const atLimit = cities.length >= maxMarkets
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
+          inputRef.current && !inputRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  function handleInputChange(val: string) {
+    setQuery(val)
+    if (val.trim().length >= 2) {
+      const results = resolveMarkets(val).filter(m => !cities.includes(m.city))
+      setSuggestions(results)
+      setShowSuggestions(true)
+    } else {
+      setSuggestions([])
+      setShowSuggestions(false)
+    }
+  }
 
   async function handleUpgrade() {
     const res = await fetch('/api/stripe/checkout', {
@@ -46,7 +110,6 @@ export default function MarketsClient({
     const data = await res.json()
     if (data.url) window.location.href = data.url
   }
-  const atLimit = cities.length >= maxMarkets
 
   function showFeedback(city: string, msg: string) {
     setFeedback({ city, msg })
@@ -57,6 +120,9 @@ export default function MarketsClient({
     if (cities.includes(city)) return
     if (atLimit) { showFeedback(city, isFree ? 'Upgrade to Pro for unlimited markets' : 'Limit reached'); return }
     setCities(prev => [...prev, city])
+    setQuery('')
+    setSuggestions([])
+    setShowSuggestions(false)
     startTransition(async () => {
       const res = await addMarket(userId, city)
       if (!res.ok) { setCities(prev => prev.filter(c => c !== city)); showFeedback(city, 'Failed — try again') }
@@ -73,11 +139,13 @@ export default function MarketsClient({
     })
   }
 
+  const popularNotAdded = POPULAR.filter(c => !cities.includes(c))
+
   return (
     <div>
       <h1 style={{fontFamily:'var(--font-syne)',fontWeight:800,fontSize:'1.6rem',color:'var(--ink)',marginBottom:'0.4rem',letterSpacing:'-0.02em'}}>Your Markets</h1>
-      <p style={{color:'var(--text-muted)',marginBottom:'1rem',fontSize:'0.9rem'}}>
-        Select the cities where you have properties. You'll receive alerts when regulations change.
+      <p style={{color:'var(--text-muted)',marginBottom:'1.5rem',fontSize:'0.9rem'}}>
+        Enter a property address, zip code, or city name to add a market.
       </p>
 
       {/* Trial active banner */}
@@ -92,7 +160,7 @@ export default function MarketsClient({
         </div>
       )}
 
-      {/* Free tier banner (trial expired or never had trial) */}
+      {/* Free tier banner */}
       {isFree && (
         <div style={{marginBottom:'1.5rem',padding:'12px 16px',background:'#fdf3e3',border:'1.5px solid #f5d9a0',borderRadius:'8px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'12px'}}>
           <span style={{fontFamily:'var(--font-mono)',fontSize:'0.62rem',letterSpacing:'0.08em',color:'#b87d2d'}}>
@@ -104,60 +172,151 @@ export default function MarketsClient({
         </div>
       )}
 
-      {cities.length > 0 && (
-        <div style={{marginBottom:'2rem'}}>
-          <div style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'var(--text-faint)',marginBottom:'0.75rem'}}>
-            Tracking {cities.length} market{cities.length !== 1 ? 's' : ''}
-          </div>
-          <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
-            {cities.map(city => (
-              <div key={city} style={{display:'flex',alignItems:'center',justifyContent:'space-between',background:'var(--green-pale)',border:'1.5px solid var(--green-light)',borderRadius:'10px',padding:'14px 18px'}}>
-                <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
-                  <div style={{width:'8px',height:'8px',background:'var(--green-bright)',borderRadius:'50%'}} />
-                  <span style={{fontFamily:'var(--font-syne)',fontWeight:600,fontSize:'0.9rem',color:'var(--ink)'}}>{city}</span>
-                  {feedback?.city === city && <span style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',color:feedback.msg.includes('Upgrade') ? '#b87d2d' : 'var(--green)',letterSpacing:'0.05em'}}>{feedback.msg}</span>}
+      {/* ── Search input ── */}
+      <div style={{position:'relative',marginBottom:'1.5rem'}}>
+        <div style={{position:'relative'}}>
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={e => handleInputChange(e.target.value)}
+            onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true) }}
+            placeholder="Enter zip code, city, or address — e.g. 37201 or Nashville"
+            style={{
+              width:'100%',
+              padding:'14px 18px 14px 42px',
+              fontFamily:'var(--font-epilogue)',
+              fontSize:'0.9rem',
+              color:'var(--ink)',
+              background:'white',
+              border:'1.5px solid var(--border-mid)',
+              borderRadius:'10px',
+              outline:'none',
+              transition:'border-color 0.2s',
+            }}
+            onMouseOver={e => (e.target as HTMLInputElement).style.borderColor = 'var(--green)'}
+            onMouseOut={e => { if (document.activeElement !== e.target) (e.target as HTMLInputElement).style.borderColor = 'var(--border-mid)' }}
+          />
+          <svg style={{position:'absolute',left:'14px',top:'50%',transform:'translateY(-50%)',width:'18px',height:'18px',color:'var(--text-faint)'}} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+
+        {/* Suggestions dropdown */}
+        {showSuggestions && suggestions.length > 0 && (
+          <div ref={dropdownRef} style={{
+            position:'absolute',top:'100%',left:0,right:0,zIndex:50,
+            marginTop:'4px',background:'white',border:'1.5px solid var(--border)',borderRadius:'10px',
+            boxShadow:'0 8px 32px rgba(15,26,10,0.1)',overflow:'hidden',maxHeight:'320px',overflowY:'auto',
+          }}>
+            <div style={{padding:'8px 14px 6px',fontFamily:'var(--font-mono)',fontSize:'0.55rem',letterSpacing:'0.12em',textTransform:'uppercase',color:'var(--text-faint)'}}>
+              {suggestions.length} market{suggestions.length !== 1 ? 's' : ''} found
+            </div>
+            {suggestions.map(m => (
+              <button key={m.city} onClick={() => handleAdd(m.city)} style={{
+                display:'flex',alignItems:'center',justifyContent:'space-between',
+                width:'100%',padding:'12px 14px',border:'none',background:'none',
+                cursor:atLimit ? 'default' : 'pointer',textAlign:'left',
+                transition:'background 0.1s',
+              }}
+              onMouseOver={e => (e.currentTarget as HTMLButtonElement).style.background = 'var(--green-pale)'}
+              onMouseOut={e => (e.currentTarget as HTMLButtonElement).style.background = 'none'}
+              >
+                <div>
+                  <div style={{fontFamily:'var(--font-syne)',fontWeight:600,fontSize:'0.88rem',color:'var(--ink)'}}>{m.city}</div>
+                  <div style={{fontFamily:'var(--font-mono)',fontSize:'0.56rem',color:'var(--text-faint)',letterSpacing:'0.04em',marginTop:'2px'}}>{m.desc}</div>
                 </div>
-                <button onClick={() => handleRemove(city)} disabled={isPending}
-                  style={{fontFamily:'var(--font-mono)',fontSize:'0.58rem',letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text-faint)',background:'none',border:'none',cursor:isFree ? 'not-allowed' : 'pointer',padding:'4px 8px',opacity:isFree ? 0.5 : 1}}
-                  title={isFree ? 'Upgrade to change markets' : 'Remove market'}>
-                  {isFree ? 'Locked' : 'Remove'}
-                </button>
-              </div>
+                <span style={{fontFamily:'var(--font-syne)',fontWeight:700,fontSize:'0.7rem',color:atLimit ? '#b87d2d' : 'var(--green)',whiteSpace:'nowrap',flexShrink:0,marginLeft:'12px'}}>
+                  {atLimit && isFree ? 'Upgrade' : '+ Add'}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* No results message */}
+        {showSuggestions && query.trim().length >= 2 && suggestions.length === 0 && (
+          <div style={{
+            position:'absolute',top:'100%',left:0,right:0,zIndex:50,
+            marginTop:'4px',background:'white',border:'1.5px solid var(--border)',borderRadius:'10px',
+            boxShadow:'0 8px 32px rgba(15,26,10,0.1)',padding:'16px',textAlign:'center',
+          }}>
+            <div style={{fontFamily:'var(--font-mono)',fontSize:'0.62rem',color:'var(--text-faint)',letterSpacing:'0.06em'}}>
+              No monitored markets match "{query}" — we're adding new cities regularly
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Quick-pick chips (popular markets not yet added) ── */}
+      {popularNotAdded.length > 0 && cities.length < 3 && (
+        <div style={{marginBottom:'1.5rem'}}>
+          <div style={{fontFamily:'var(--font-mono)',fontSize:'0.55rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'var(--text-faint)',marginBottom:'8px'}}>
+            Popular markets
+          </div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:'6px'}}>
+            {popularNotAdded.slice(0, 6).map(city => (
+              <button key={city} onClick={() => handleAdd(city)} style={{
+                fontFamily:'var(--font-mono)',fontSize:'0.62rem',letterSpacing:'0.04em',
+                padding:'6px 12px',borderRadius:'100px',border:'1.5px solid var(--border)',
+                background:'white',color:'var(--text-mid)',cursor:atLimit ? 'default' : 'pointer',
+                transition:'all 0.15s',
+              }}
+              onMouseOver={e => { (e.target as HTMLButtonElement).style.borderColor = 'var(--green-light)'; (e.target as HTMLButtonElement).style.background = 'var(--green-pale)' }}
+              onMouseOut={e => { (e.target as HTMLButtonElement).style.borderColor = 'var(--border)'; (e.target as HTMLButtonElement).style.background = 'white' }}
+              >
+                + {city.split(',')[0]}
+              </button>
             ))}
           </div>
         </div>
       )}
 
-      <div>
-        <div style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'var(--text-faint)',marginBottom:'0.75rem'}}>
-          Available markets — beta
-        </div>
-        <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
-          {AVAILABLE_MARKETS.map(({ city, description }) => {
-            const active = cities.includes(city)
-            const disabled = active || (atLimit && !active)
-            return (
-              <div key={city} style={{display:'flex',alignItems:'center',justifyContent:'space-between',background:'white',border:`1.5px solid ${active ? 'var(--green-light)' : 'var(--border)'}`,borderRadius:'10px',padding:'14px 18px',opacity:active ? 0.5 : 1}}>
-                <div>
-                  <div style={{fontFamily:'var(--font-syne)',fontWeight:600,fontSize:'0.9rem',color:'var(--ink)',marginBottom:'2px'}}>{city}</div>
-                  <div style={{fontFamily:'var(--font-mono)',fontSize:'0.58rem',color:'var(--text-faint)',letterSpacing:'0.05em'}}>{description}</div>
-                  {feedback?.city === city && !active && <div style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',color:'#b87d2d',marginTop:'4px'}}>{feedback.msg}</div>}
+      {/* ── Tracked markets list ── */}
+      {cities.length > 0 && (
+        <div style={{marginBottom:'1rem'}}>
+          <div style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',letterSpacing:'0.15em',textTransform:'uppercase',color:'var(--text-faint)',marginBottom:'0.75rem'}}>
+            Tracking {cities.length} market{cities.length !== 1 ? 's' : ''}
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+            {cities.map(city => {
+              const market = MARKETS.find(m => m.city === city)
+              return (
+                <div key={city} style={{display:'flex',alignItems:'center',justifyContent:'space-between',background:'var(--green-pale)',border:'1.5px solid var(--green-light)',borderRadius:'10px',padding:'14px 18px'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:'10px',flex:1,minWidth:0}}>
+                    <div style={{width:'8px',height:'8px',background:'var(--green-bright)',borderRadius:'50%',flexShrink:0}} />
+                    <div style={{minWidth:0}}>
+                      <span style={{fontFamily:'var(--font-syne)',fontWeight:600,fontSize:'0.9rem',color:'var(--ink)'}}>{city}</span>
+                      {market && <div style={{fontFamily:'var(--font-mono)',fontSize:'0.55rem',color:'var(--text-faint)',letterSpacing:'0.04em',marginTop:'2px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{market.desc}</div>}
+                    </div>
+                    {feedback?.city === city && <span style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',color:feedback.msg.includes('Upgrade') ? '#b87d2d' : 'var(--green)',letterSpacing:'0.05em',flexShrink:0,marginLeft:'8px'}}>{feedback.msg}</span>}
+                  </div>
+                  <button onClick={() => handleRemove(city)} disabled={isPending}
+                    style={{fontFamily:'var(--font-mono)',fontSize:'0.58rem',letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--text-faint)',background:'none',border:'none',cursor:isFree ? 'not-allowed' : 'pointer',padding:'4px 8px',opacity:isFree ? 0.5 : 1,flexShrink:0}}
+                    title={isFree ? 'Upgrade to change markets' : 'Remove market'}>
+                    {isFree ? 'Locked' : 'Remove'}
+                  </button>
                 </div>
-                <button onClick={() => handleAdd(city)} disabled={disabled || isPending}
-                  style={{fontFamily:'var(--font-syne)',fontWeight:700,fontSize:'0.75rem',padding:'8px 18px',borderRadius:'6px',border:'none',cursor:disabled ? 'default' : 'pointer',background:active ? 'var(--border)' : atLimit ? '#f5d9a0' : 'var(--green-deep)',color:active ? 'var(--text-faint)' : atLimit ? '#b87d2d' : 'white',whiteSpace:'nowrap'}}>
-                  {active ? 'Added' : atLimit && isFree ? 'Upgrade' : 'Add market'}
-                </button>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {cities.length === 0 && (
-        <div style={{marginTop:'2rem',padding:'20px',background:'var(--off-white)',border:'1px solid var(--border)',borderRadius:'10px',textAlign:'center'}}>
-          <p style={{fontFamily:'var(--font-mono)',fontSize:'0.65rem',letterSpacing:'0.08em',color:'var(--text-faint)'}}>No markets added yet — add a city above to start receiving alerts</p>
+              )
+            })}
+          </div>
         </div>
       )}
+
+      {cities.length === 0 && (
+        <div style={{marginTop:'1rem',padding:'24px',background:'var(--off-white)',border:'1px solid var(--border)',borderRadius:'10px',textAlign:'center'}}>
+          <p style={{fontFamily:'var(--font-syne)',fontWeight:600,fontSize:'0.95rem',color:'var(--text-mid)',marginBottom:'4px'}}>No markets yet</p>
+          <p style={{fontFamily:'var(--font-mono)',fontSize:'0.62rem',letterSpacing:'0.06em',color:'var(--text-faint)'}}>Type a zip code or city name above to add your first market</p>
+        </div>
+      )}
+
+      {/* ── 30 markets badge ── */}
+      <div style={{marginTop:'2rem',padding:'14px 18px',background:'white',border:'1px solid var(--border)',borderRadius:'10px',display:'flex',alignItems:'center',gap:'10px'}}>
+        <div style={{width:'8px',height:'8px',background:'var(--green-bright)',borderRadius:'50%',animation:'pulse 2s ease-in-out infinite'}} />
+        <span style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',letterSpacing:'0.08em',color:'var(--text-muted)'}}>
+          Monitoring <strong style={{color:'var(--green)'}}>30 US markets</strong> with active scraping · Nashville, Austin, Denver, NYC, LA, SF, and 24 more
+        </span>
+      </div>
     </div>
   )
 }
