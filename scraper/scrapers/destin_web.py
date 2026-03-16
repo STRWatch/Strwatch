@@ -1,21 +1,22 @@
 """
 scrapers/destin_web.py — Destin FL / 30A / Walton County STR page monitoring.
 
-Destin & 30A is one of the top beach STR markets in the US:
-  - Multiple jurisdictions: City of Destin, Walton County (30A), Okaloosa County
-  - FL DBPR state license required for all vacation rentals
-  - Destin: Business Tax Receipt required, vacation rental registration
-  - Walton County: Tourist Development Tax 5%, active enforcement
-  - Okaloosa County: Tourist Development Tax 5%
-  - State sales tax 6% + county TDT = 11-12% total
-  - Occupancy limits, noise ordinances, parking requirements
-  - High investor density — significant property management industry
-  - Hurricane evacuation compliance requirements
+Destin STR regulations:
+  - $200 registration fee per unit (single family, townhome, duplex, triplex)
+  - Late fees: $100 after March 31, $500 after June 1
+  - Max overnight occupancy: 2 adults/bedroom + 4 additional, cap 24
+  - Quiet hours 10pm-7am
+  - Sign required on property within 7 days of registration
+  - Local responsible party within 1 hour required
+  - FL DBPR state license mandatory
+  - Walton County (30A): separate Tourist Development Tax 5%
+  - Registration renews annually starting January 1
 
-Data sources:
-  - City of Destin: cityofdestin.com/150/Short-Term-Vacation-Rentals
-  - Walton County TDC: visitsouthwalton.com (tourism development council)
-  - Okaloosa County tax collector: okaloosatax.com
+Data sources (verified March 2026):
+  - Code Compliance: cityofdestin.com/90/Code-Compliance
+  - STR FAQ: cityofdestin.com/faq.aspx?TID=19
+  - Resources: cityofdestin.com/200/Useful-Resources-Links
+  - Walton County TDC: waltoncountytdc.com
 """
 
 import logging
@@ -25,8 +26,8 @@ log = logging.getLogger(__name__)
 CITY = "Destin/30A, FL"
 
 WATCHED_PAGES = [
-    {"name": "Destin — Short-Term Vacation Rentals", "url": "https://www.cityofdestin.com/150/Short-Term-Vacation-Rentals", "priority": "high"},
-    {"name": "Destin — Code Compliance", "url": "https://www.cityofdestin.com/151/Code-Compliance", "priority": "medium"},
+    {"name": "Destin — Code Compliance", "url": "https://www.cityofdestin.com/90/Code-Compliance", "priority": "high"},
+    {"name": "Destin — STR FAQ", "url": "https://www.cityofdestin.com/faq.aspx?TID=19", "priority": "high"},
     {"name": "Walton County — Tourist Dev Tax", "url": "https://waltoncountytdc.com/tourist-development-tax/", "priority": "medium"},
 ]
 

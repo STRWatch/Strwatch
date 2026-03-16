@@ -1,21 +1,20 @@
 """
 scrapers/portland_web.py — Portland OR STR page monitoring.
 
-Portland STR regulations:
-  - Permit required: Type A (accessory, host present) or Type B (primary residence, host absent)
-  - Must be operator's primary residence
-  - Type B limited to 95 nights/year when host is absent
-  - $190 permit fee (2-year), BDS safety inspection required
+Portland Accessory Short-Term Rental (ASTR) regulations:
+  - Type A: 1-2 bedrooms, max 5 guests, $360/2yr permit
+  - Type B: 3-5 bedrooms, conditional use review, ~$9,000
+  - Resident must occupy 270+ days/year
+  - Max 95 nights absent while renting
   - Transient Lodging Tax: 11.5% (city 6% + county 5.5%)
-  - Must display permit number on all listings
-  - Oregon preemption debate ongoing — SB 1554 (2024) proposed limits on local bans
-  - Accessory Dwelling Units (ADUs) cannot be used as STRs unless owner-occupied
-  - Noise, parking, trash rules enforced via complaint system
+  - Portland Ombudsman found fines 27x higher than comparable cities (2026)
+  - ADUs cannot be used as STRs unless owner-occupied
+  - Permit number required on all listings
 
-Data sources:
-  - BDS STR permits: portland.gov/bds/short-term-rentals
-  - Revenue Division lodging tax: portland.gov/revenue/transient-lodging-tax
-  - City code: portland.gov/code/33/207
+Data sources (verified March 2026):
+  - ASTR permits main: portland.gov/bds/astr-permits
+  - ASTR before you apply: portland.gov/bds/astr-permits/before-you-apply
+  - ASTR maintaining permits: portland.gov/bds/astr-permits/maintain-astr-permits
 """
 
 import logging
@@ -25,9 +24,9 @@ log = logging.getLogger(__name__)
 CITY = "Portland, OR"
 
 WATCHED_PAGES = [
-    {"name": "Portland — STR Permits (BDS)", "url": "https://www.portland.gov/bds/short-term-rentals", "priority": "high"},
-    {"name": "Portland — Transient Lodging Tax", "url": "https://www.portland.gov/revenue/transient-lodging-tax", "priority": "medium"},
-    {"name": "Portland — STR Code (33.207)", "url": "https://www.portland.gov/code/33/207", "priority": "medium"},
+    {"name": "Portland — ASTR Permits", "url": "https://www.portland.gov/bds/astr-permits", "priority": "high"},
+    {"name": "Portland — ASTR Before You Apply", "url": "https://www.portland.gov/bds/astr-permits/before-you-apply", "priority": "high"},
+    {"name": "Portland — Maintaining ASTR Permits", "url": "https://www.portland.gov/bds/astr-permits/maintain-astr-permits", "priority": "medium"},
 ]
 
 def run():

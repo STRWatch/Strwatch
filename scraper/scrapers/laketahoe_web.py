@@ -2,23 +2,21 @@
 scrapers/laketahoe_web.py — Lake Tahoe CA/NV STR page monitoring.
 
 Lake Tahoe spans multiple jurisdictions with complex STR rules:
-  - El Dorado County (South Lake Tahoe, CA): VHR permit required,
-    lottery for new permits, caps by neighborhood
-  - Placer County (North Shore, CA): STR permit moratorium in some areas,
-    active enforcement, $1,000/day fines
-  - Washoe County (NV side, Incline Village): residential permit required
-  - City of South Lake Tahoe: Measure T passed 2018 (banned non-owner STRs
-    in residential), later modified by Measure N (2024)
-  - TRPA (Tahoe Regional Planning Agency): additional environmental overlays
+  - South Lake Tahoe: Measure T struck down March 2025, moratorium in
+    residential areas while new ordinance drafted. $535 VHR permit fee.
+    Bear box required. Permits handled by Police Department.
+  - El Dorado County: VHR permits with neighborhood caps
+  - Placer County (North Shore): STR permit, $1,000/day fines
+  - TRPA (Tahoe Regional Planning Agency): environmental overlays
   - TOT rates vary: 10-14% depending on jurisdiction
-  - Aggressive enforcement with dedicated STR enforcement staff
-  - Bear box and wildlife management requirements
+  - Massive regulatory upheaval — Measure T reversal in 2025 opened
+    residential areas to VHRs again after years of prohibition
 
-Data sources:
-  - South Lake Tahoe: cityofslt.us/585/Vacation-Home-Rental-VHR-Program
-  - El Dorado County: edcgov.us/VHR
-  - Placer County: placer.ca.gov/str
-  - Washoe County: washoecounty.gov/building/str
+Data sources (verified March 2026):
+  - SLT Short-Term Rentals: cityofslt.us/2431/Short-Term-Rentals
+  - SLT Measure T: cityofslt.us/2418/Measure-T-updated-642025
+  - El Dorado County VHR: edcgov.us/Government/Planning/vacation-home-rentals
+  - Placer County STR: placer.ca.gov/str
 """
 
 import logging
@@ -28,8 +26,8 @@ log = logging.getLogger(__name__)
 CITY = "Lake Tahoe, CA"
 
 WATCHED_PAGES = [
-    {"name": "South Lake Tahoe — VHR Program", "url": "https://www.cityofslt.us/585/Vacation-Home-Rental-VHR-Program", "priority": "high"},
-    {"name": "El Dorado County — VHR Permits", "url": "https://www.edcgov.us/Government/Planning/vacation-home-rentals", "priority": "high"},
+    {"name": "South Lake Tahoe — Short-Term Rentals", "url": "https://www.cityofslt.us/2431/Short-Term-Rentals", "priority": "high"},
+    {"name": "South Lake Tahoe — Measure T Updates", "url": "https://cityofslt.us/2418/Measure-T-updated-642025", "priority": "high"},
     {"name": "Placer County — STR Info", "url": "https://www.placer.ca.gov/str", "priority": "high"},
 ]
 
