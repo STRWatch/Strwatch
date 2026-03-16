@@ -349,6 +349,15 @@ def run_all(args: List[str]) -> dict:
             log.error("State pages scraper failed: %s", e, exc_info=True)
             results["state_pages"] = {"error": str(e)}
 
+    # ── County-Level Pages (Davidson, Travis, El Dorado, Multnomah, Monroe, SB, Okaloosa, Chatham) ──
+    banner("County-Level Pages (8 counties)")
+    try:
+        from scrapers import county_pages_web
+        results["county_pages"] = county_pages_web.run()
+    except Exception as e:
+        log.error("County pages scraper failed: %s", e, exc_info=True)
+        results["county_pages"] = {"error": str(e)}
+
     # ── Deadline Reminders (runs after all scrapers) ──
     banner("Deadline Reminders")
     try:
