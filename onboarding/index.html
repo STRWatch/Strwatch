@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STRWatch — Get Started</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Epilogue:ital,wght@0,300;0,400;0,500;1,300;1,400&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+:root{
+  --white:#ffffff;
+  --off-white:#f7f9f5;
+  --light:#eef3e9;
+  --border:#d8e8cf;
+  --border-mid:#bfd4b0;
+  --text:#0f1a0a;
+  --text-mid:#374530;
+  --text-muted:#6b7c63;
+  --text-faint:#9aab90;
+  --green-deep:#1a4d2e;
+  --green:#2d7a4f;
+  --green-mid:#3a9660;
+  --green-bright:#4db87a;
+  --green-light:#c8ecd8;
+  --green-pale:#e8f5ee;
+  --mint:#a8e6c3;
+  --ink:#0f1a0a;
+  --amber:#b87d2d;
+  --amber-pale:#fdf3e3;
+  --amber-light:#f5d9a0;
+  --red:#b84040;
+  --red-pale:#fff0ee;
+  --red-light:#f7c8c8;
+  --blue:#3a5cb8;
+  --blue-pale:#eef3ff;
+  --blue-light:#c8d8f7;
+}
+body{background:var(--off-white);color:var(--text);font-family:'Epilogue',system-ui,sans-serif;font-size:15px;line-height:1.7;overflow-x:hidden;}
+a{color:inherit;text-decoration:none;}
+
+/* TOP BAR */
+.topbar{background:var(--green-deep);padding:0 40px;height:52px;display:flex;align-items:center;justify-content:space-between;}
+.topbar-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;color:white;letter-spacing:-0.02em;}
+.topbar-logo span{color:var(--mint);}
+.topbar-right{display:flex;align-items:center;gap:16px;}
+.topbar-link{font-family:'JetBrains Mono',monospace;font-size:0.58rem;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.5);transition:color 0.2s;}
+.topbar-link:hover{color:white;}
+.topbar-plan{font-family:'JetBrains Mono',monospace;font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;padding:4px 10px;background:rgba(168,230,195,0.15);border:1px solid rgba(168,230,195,0.25);border-radius:100px;color:var(--mint);}
+
+/* WELCOME HEADER */
+.welcome{max-width:800px;margin:0 auto;padding:56px 40px 0;}
+.welcome-eyebrow{font-family:'JetBrains Mono',monospace;font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--green);display:flex;align-items:center;gap:10px;margin-bottom:1rem;}
+.welcome-eyebrow::before{content:'';width:24px;height:1.5px;background:var(--green);}
+.welcome h1{font-family:'Syne',sans-serif;font-weight:800;font-size:2.2rem;line-height:1.1;letter-spacing:-0.03em;color:var(--ink);margin-bottom:0.5rem;}
+.welcome h1 span{color:var(--green);}
+.welcome-sub{font-size:1rem;color:var(--text-muted);max-width:520px;}
+
+/* PROGRESS */
+.progress-section{max-width:800px;margin:0 auto;padding:32px 40px 0;}
+.progress-bar-wrap{background:var(--white);border:1.5px solid var(--border);border-radius:10px;padding:16px 20px;}
+.progress-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.progress-label{font-family:'JetBrains Mono',monospace;font-size:0.58rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-muted);}
+.progress-pct{font-family:'Syne',sans-serif;font-weight:700;font-size:0.85rem;color:var(--green);}
+.progress-track{height:6px;background:var(--border);border-radius:100px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:100px;background:linear-gradient(90deg,var(--green),var(--green-bright));transition:width 0.6s cubic-bezier(0.4,0,0.2,1);width:0%;}
+
+/* STEPS */
+.steps{max-width:800px;margin:0 auto;padding:32px 40px;}
+.step-card{background:var(--white);border:1.5px solid var(--border);border-radius:12px;margin-bottom:12px;overflow:hidden;transition:border-color 0.2s,box-shadow 0.2s;}
+.step-card:hover{border-color:var(--border-mid);}
+.step-card.active{border-color:var(--green-light);box-shadow:0 0 0 3px rgba(45,122,79,0.06);}
+.step-card.done{opacity:0.65;}
+.step-card.done .step-header{background:var(--green-pale);}
+
+.step-header{display:flex;align-items:center;gap:14px;padding:18px 20px;cursor:pointer;user-select:none;transition:background 0.15s;}
+.step-header:hover{background:var(--off-white);}
+.step-card.done .step-header:hover{background:var(--green-pale);}
+
+.step-check{width:26px;height:26px;border-radius:50%;border:2px solid var(--border-mid);flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all 0.2s;font-size:11px;font-weight:700;color:transparent;}
+.step-card.done .step-check{background:var(--green);border-color:var(--green);color:white;}
+.step-card:not(.done) .step-check{font-family:'Syne',sans-serif;font-weight:800;font-size:0.7rem;color:var(--text-faint);border-color:var(--border);}
+
+.step-info{flex:1;}
+.step-title{font-family:'Syne',sans-serif;font-weight:700;font-size:0.95rem;color:var(--ink);line-height:1.3;}
+.step-card.done .step-title{text-decoration:line-through;color:var(--text-muted);}
+.step-subtitle{font-family:'Epilogue',sans-serif;font-size:0.78rem;color:var(--text-muted);margin-top:2px;}
+
+.step-time{font-family:'JetBrains Mono',monospace;font-size:0.55rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-faint);white-space:nowrap;}
+
+.step-badge{font-family:'JetBrains Mono',monospace;font-size:0.5rem;letter-spacing:0.1em;text-transform:uppercase;padding:3px 8px;border-radius:100px;white-space:nowrap;}
+.badge-required{background:var(--green-pale);color:var(--green);border:1px solid var(--green-light);}
+.badge-recommended{background:var(--blue-pale);color:var(--blue);border:1px solid var(--blue-light);}
+.badge-optional{background:var(--off-white);color:var(--text-faint);border:1px solid var(--border);}
+
+.step-expand{width:24px;height:24px;display:flex;align-items:center;justify-content:center;color:var(--text-faint);transition:transform 0.25s;font-size:0.75rem;}
+.step-card.open .step-expand{transform:rotate(180deg);}
+
+.step-body{display:none;padding:0 20px 20px;padding-left:60px;}
+.step-card.open .step-body{display:block;}
+
+.step-body p{font-size:0.85rem;color:var(--text-mid);line-height:1.7;margin-bottom:12px;}
+.step-body ul{list-style:none;display:flex;flex-direction:column;gap:6px;margin-bottom:16px;}
+.step-body li{font-size:0.82rem;color:var(--text-mid);display:flex;align-items:flex-start;gap:8px;line-height:1.5;}
+.step-body li::before{content:'→';color:var(--green);font-weight:700;flex-shrink:0;margin-top:1px;}
+
+.step-action{display:inline-flex;align-items:center;gap:6px;font-family:'Syne',sans-serif;font-weight:700;font-size:0.78rem;padding:10px 18px;border-radius:8px;cursor:pointer;transition:all 0.2s;border:none;}
+.step-action-primary{background:var(--green-deep);color:white;}
+.step-action-primary:hover{background:var(--green);}
+.step-action-secondary{background:var(--white);color:var(--ink);border:1.5px solid var(--border-mid);}
+.step-action-secondary:hover{border-color:var(--green);color:var(--green);}
+.step-actions{display:flex;gap:8px;flex-wrap:wrap;}
+
+.step-tip{background:var(--green-pale);border:1px solid var(--green-light);border-radius:8px;padding:10px 14px;margin-top:12px;display:flex;align-items:flex-start;gap:8px;}
+.tip-icon{font-size:0.9rem;flex-shrink:0;margin-top:1px;}
+.tip-text{font-family:'Epilogue',sans-serif;font-size:0.78rem;color:var(--green-deep);line-height:1.55;}
+
+/* SECTION DIVIDER */
+.section-divider{max-width:800px;margin:0 auto;padding:0 40px;}
+.divider-inner{display:flex;align-items:center;gap:12px;padding:8px 0;}
+.divider-label{font-family:'JetBrains Mono',monospace;font-size:0.58rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--text-faint);white-space:nowrap;}
+.divider-line{flex:1;height:1px;background:var(--border);}
+
+/* FEATURES SECTION */
+.features-section{max-width:800px;margin:0 auto;padding:24px 40px 16px;}
+.features-section h2{font-family:'Syne',sans-serif;font-weight:800;font-size:1.4rem;letter-spacing:-0.02em;color:var(--ink);margin-bottom:4px;}
+.features-section .lead{font-size:0.9rem;color:var(--text-muted);margin-bottom:24px;}
+
+.feature-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.feature-card{background:var(--white);border:1.5px solid var(--border);border-radius:12px;padding:20px;transition:border-color 0.2s,transform 0.15s;}
+.feature-card:hover{border-color:var(--green-light);transform:translateY(-2px);}
+.feature-card.locked{opacity:0.5;pointer-events:none;position:relative;}
+.feature-card.locked::after{content:'PRO';position:absolute;top:12px;right:12px;font-family:'JetBrains Mono',monospace;font-size:0.5rem;letter-spacing:0.12em;padding:3px 8px;background:var(--amber-pale);color:var(--amber);border:1px solid var(--amber-light);border-radius:100px;}
+
+.feature-icon{font-size:1.4rem;margin-bottom:10px;display:block;}
+.feature-name{font-family:'Syne',sans-serif;font-weight:700;font-size:0.9rem;color:var(--ink);margin-bottom:4px;}
+.feature-desc{font-family:'Epilogue',sans-serif;font-size:0.78rem;color:var(--text-muted);line-height:1.55;}
+.feature-tag{display:inline-block;margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:0.5rem;letter-spacing:0.1em;text-transform:uppercase;padding:3px 8px;border-radius:100px;}
+.ftag-live{background:var(--green-pale);color:var(--green);border:1px solid var(--green-light);}
+.ftag-soon{background:var(--amber-pale);color:var(--amber);border:1px solid var(--amber-light);}
+.ftag-beta{background:var(--blue-pale);color:var(--blue);border:1px solid var(--blue-light);}
+
+/* CTA BANNER */
+.cta-banner{max-width:800px;margin:0 auto;padding:24px 40px 48px;}
+.cta-inner{background:var(--green-deep);border-radius:12px;padding:28px 32px;display:flex;align-items:center;justify-content:space-between;gap:24px;position:relative;overflow:hidden;}
+.cta-inner::before{content:'';position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.04) 1px,transparent 1px);background-size:48px 48px;}
+.cta-text{position:relative;}
+.cta-title{font-family:'Syne',sans-serif;font-weight:800;font-size:1.15rem;color:white;letter-spacing:-0.02em;}
+.cta-title span{color:var(--mint);}
+.cta-sub{font-family:'Epilogue',sans-serif;font-size:0.82rem;color:rgba(255,255,255,0.5);margin-top:4px;}
+.cta-btn{position:relative;font-family:'Syne',sans-serif;font-weight:700;font-size:0.8rem;padding:12px 24px;background:var(--mint);color:var(--green-deep);border:none;border-radius:8px;cursor:pointer;transition:background 0.2s;white-space:nowrap;}
+.cta-btn:hover{background:white;}
+
+/* FOOTER */
+.onboard-footer{max-width:800px;margin:0 auto;padding:0 40px 40px;}
+.footer-inner{border-top:1px solid var(--border);padding-top:20px;display:flex;align-items:center;justify-content:space-between;}
+.footer-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:0.85rem;color:var(--text-faint);letter-spacing:-0.02em;}
+.footer-logo span{color:var(--green);}
+.footer-links{display:flex;gap:16px;}
+.footer-link{font-family:'JetBrains Mono',monospace;font-size:0.55rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-faint);transition:color 0.2s;}
+.footer-link:hover{color:var(--green);}
+
+/* ANIMATIONS */
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+.animate{animation:fadeUp 0.45s ease forwards;opacity:0;}
+.delay-1{animation-delay:0.08s;}
+.delay-2{animation-delay:0.16s;}
+.delay-3{animation-delay:0.24s;}
+.delay-4{animation-delay:0.32s;}
+.delay-5{animation-delay:0.4s;}
+
+/* RESPONSIVE */
+@media(max-width:640px){
+  .welcome{padding:36px 20px 0;}
+  .welcome h1{font-size:1.6rem;}
+  .progress-section,.steps,.features-section,.cta-banner,.onboard-footer,.section-divider{padding-left:20px;padding-right:20px;}
+  .feature-grid{grid-template-columns:1fr;}
+  .step-body{padding-left:20px;}
+  .cta-inner{flex-direction:column;text-align:center;}
+  .topbar{padding:0 20px;}
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <a class="topbar-logo" href="/">STR<span>Watch</span></a>
+  <div class="topbar-right">
+    <a class="topbar-link" href="/map">Map</a>
+    <a class="topbar-link" href="/blog">Blog</a>
+    <a class="topbar-link" href="/dashboard">Dashboard</a>
+    <div class="topbar-plan">Pro · Founding member</div>
+  </div>
+</div>
+
+<!-- WELCOME -->
+<div class="welcome animate">
+  <div class="welcome-eyebrow">Getting started</div>
+  <h1>Welcome to STR<span>Watch.</span></h1>
+  <p class="welcome-sub">Complete these steps to start receiving real-time regulation alerts for your properties. Takes about 5 minutes.</p>
+</div>
+
+<!-- PROGRESS -->
+<div class="progress-section animate delay-1">
+  <div class="progress-bar-wrap">
+    <div class="progress-top">
+      <span class="progress-label">Setup progress</span>
+      <span class="progress-pct" id="progress-pct">0 / 5 complete</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SETUP STEPS -->
+<div class="steps">
+
+  <!-- Step 1 -->
+  <div class="step-card open animate delay-2" data-step="1">
+    <div class="step-header" onclick="toggleStep(this)">
+      <div class="step-check">1</div>
+      <div class="step-info">
+        <div class="step-title">Choose your markets</div>
+        <div class="step-subtitle">Select the cities where you have properties — you'll get alerts when regulations change.</div>
+      </div>
+      <span class="step-badge badge-required">Required</span>
+      <span class="step-time">~1 min</span>
+      <div class="step-expand">▾</div>
+    </div>
+    <div class="step-body">
+      <p>Head to the <strong>Markets</strong> tab and select every city where you operate. STRWatch tracks regulation changes, enforcement actions, and permit deadlines for each market you add.</p>
+      <ul>
+        <li>We currently monitor <strong>30 US markets</strong> with active scraping — Nashville, Austin, Denver, NYC, LA, and more</li>
+        <li>Each market shows its data source (Legistar API, SODA API, ArcGIS, page monitoring)</li>
+        <li>Pro plan = unlimited markets, Free = 1 market</li>
+      </ul>
+      <div class="step-actions">
+        <a class="step-action step-action-primary" href="/markets" onclick="markDone(1)">Go to Markets →</a>
+      </div>
+      <div class="step-tip">
+        <span class="tip-icon">💡</span>
+        <span class="tip-text">Add every market where you have properties or are considering investing. You can always remove markets later — better to have too many alerts than too few.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2 -->
+  <div class="step-card animate delay-3" data-step="2">
+    <div class="step-header" onclick="toggleStep(this)">
+      <div class="step-check">2</div>
+      <div class="step-info">
+        <div class="step-title">Set up alert preferences</div>
+        <div class="step-subtitle">Choose how and when you want to be notified.</div>
+      </div>
+      <span class="step-badge badge-required">Required</span>
+      <span class="step-time">~1 min</span>
+      <div class="step-expand">▾</div>
+    </div>
+    <div class="step-body">
+      <p>Configure your notification channels and urgency thresholds. High-urgency alerts (permit deadlines under 30 days, enforcement actions) can go to SMS. Routine updates go to email.</p>
+      <ul>
+        <li><strong>Email alerts</strong> — all plans, daily or weekly digest</li>
+        <li><strong>SMS alerts</strong> — Pro and Agency, for urgent deadlines only</li>
+        <li><strong>Urgency filters</strong> — choose what qualifies as "urgent" for your portfolio</li>
+      </ul>
+      <div class="step-actions">
+        <button class="step-action step-action-primary" onclick="markDone(2)">Configure alerts →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3 -->
+  <div class="step-card animate delay-3" data-step="3">
+    <div class="step-header" onclick="toggleStep(this)">
+      <div class="step-check">3</div>
+      <div class="step-info">
+        <div class="step-title">Review your compliance snapshot</div>
+        <div class="step-subtitle">See every regulation, deadline, and requirement for your properties.</div>
+      </div>
+      <span class="step-badge badge-required">Required</span>
+      <span class="step-time">~2 min</span>
+      <div class="step-expand">▾</div>
+    </div>
+    <div class="step-body">
+      <p>Once your markets are selected, STRWatch generates a compliance snapshot — a complete picture of what's required to operate legally in each market.</p>
+      <ul>
+        <li><strong>Active permits & licenses</strong> — what you need and where to get them</li>
+        <li><strong>Tax obligations</strong> — city, county, and state tax rates and filing deadlines</li>
+        <li><strong>Upcoming deadlines</strong> — renewal windows, registration dates, compliance milestones</li>
+        <li><strong>Recent changes</strong> — ordinances passed in the last 90 days that affect your properties</li>
+      </ul>
+      <div class="step-actions">
+        <button class="step-action step-action-primary" onclick="markDone(3)">View snapshot →</button>
+        <button class="step-action step-action-secondary">Download PDF</button>
+      </div>
+      <div class="step-tip">
+        <span class="tip-icon">📋</span>
+        <span class="tip-text">Pro tip: Share the PDF snapshot with your property manager or CPA. They'll need the same deadline information you do.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 4 -->
+  <div class="step-card animate delay-4" data-step="4">
+    <div class="step-header" onclick="toggleStep(this)">
+      <div class="step-check">4</div>
+      <div class="step-info">
+        <div class="step-title">Run a market scan or explore the map</div>
+        <div class="step-subtitle">Research any US market or browse all 30 monitored cities.</div>
+      </div>
+      <span class="step-badge badge-recommended">Recommended</span>
+      <span class="step-time">~1 min</span>
+      <div class="step-expand">▾</div>
+    </div>
+    <div class="step-body">
+      <p>Two ways to research markets:</p>
+      <ul>
+        <li><strong>Market Scans</strong> — enter any US city and generate a pre-investment regulation report. Permit requirements, tax rates, enforcement risk, and key deadlines.</li>
+        <li><strong>Regulation Map</strong> — interactive map of all 30 monitored markets, color-coded by severity. Click any city for detailed stats and rules.</li>
+        <li>Scans for our 30 tracked markets are enriched with live data from our scraping infrastructure</li>
+      </ul>
+      <div class="step-actions">
+        <a class="step-action step-action-primary" href="/scans" onclick="markDone(4)">Run a scan →</a>
+        <a class="step-action step-action-secondary" href="/map">Open regulation map</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 5 -->
+  <div class="step-card animate delay-5" data-step="5">
+    <div class="step-header" onclick="toggleStep(this)">
+      <div class="step-check">5</div>
+      <div class="step-info">
+        <div class="step-title">Invite your team (optional)</div>
+        <div class="step-subtitle">Add co-hosts, property managers, or partners.</div>
+      </div>
+      <span class="step-badge badge-optional">Optional</span>
+      <span class="step-time">~1 min</span>
+      <div class="step-expand">▾</div>
+    </div>
+    <div class="step-body">
+      <p>If you work with a property manager, co-host, or business partner, invite them to your STRWatch account. Everyone stays on the same page about deadlines and regulation changes.</p>
+      <ul>
+        <li>Shared compliance dashboard — everyone sees the same deadlines</li>
+        <li>Individual alert preferences — each person controls their own notifications</li>
+        <li>Agency tier supports unlimited team members</li>
+      </ul>
+      <div class="step-actions">
+        <button class="step-action step-action-secondary" onclick="markDone(5)">Invite team member →</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- DIVIDER -->
+<div class="section-divider">
+  <div class="divider-inner">
+    <span class="divider-label">What you get</span>
+    <div class="divider-line"></div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<div class="features-section">
+  <h2>Your STRWatch toolkit</h2>
+  <p class="lead">Everything that comes with your plan — and what's coming next.</p>
+  <div class="feature-grid">
+
+    <div class="feature-card">
+      <span class="feature-icon">🔔</span>
+      <div class="feature-name">Real-time regulation alerts</div>
+      <div class="feature-desc">48-hour SLA from ordinance enactment to your inbox. Sorted by urgency. Email + SMS on Pro.</div>
+      <span class="feature-tag ftag-live">Live</span>
+    </div>
+
+    <div class="feature-card">
+      <span class="feature-icon">📅</span>
+      <div class="feature-name">Permit deadline tracker</div>
+      <div class="feature-desc">Every renewal, expiration, and compliance deadline tracked. Reminders at 60, 30, and 7 days out.</div>
+      <span class="feature-tag ftag-live">Live</span>
+    </div>
+
+    <div class="feature-card">
+      <span class="feature-icon">🗺️</span>
+      <div class="feature-name">30-market regulation map</div>
+      <div class="feature-desc">Interactive map of STR rules across all monitored markets. Severity ratings, key stats, and source links.</div>
+      <span class="feature-tag ftag-live">Live</span>
+    </div>
+
+    <div class="feature-card">
+      <span class="feature-icon">✅</span>
+      <div class="feature-name">AI compliance checklist</div>
+      <div class="feature-desc">For every regulation change, a step-by-step action list generated for your specific markets and situation.</div>
+      <span class="feature-tag ftag-live">Live</span>
+    </div>
+
+    <div class="feature-card">
+      <span class="feature-icon">🔍</span>
+      <div class="feature-name">Pre-investment market scans</div>
+      <div class="feature-desc">Researching a new market? Generate a full regulation report for any US city. Permit requirements, tax rates, enforcement risk — before you buy.</div>
+      <span class="feature-tag ftag-live">Live</span>
+    </div>
+
+    <div class="feature-card">
+      <span class="feature-icon">📊</span>
+      <div class="feature-name">Compliance health score</div>
+      <div class="feature-desc">A single score showing how compliant your portfolio is. Tracks permits, deadlines, and enforcement risk.</div>
+      <span class="feature-tag ftag-soon">Coming soon</span>
+    </div>
+
+    <div class="feature-card locked">
+      <span class="feature-icon">📄</span>
+      <div class="feature-name">White-label reports</div>
+      <div class="feature-desc">PDF compliance reports with your agency branding. Share with clients to demonstrate value.</div>
+      <span class="feature-tag ftag-soon">Agency · $99/mo</span>
+    </div>
+
+    <div class="feature-card locked">
+      <span class="feature-icon">🔌</span>
+      <div class="feature-name">API access</div>
+      <div class="feature-desc">REST API for regulation data. Integrate STRWatch into your property management software or custom tools.</div>
+      <span class="feature-tag ftag-soon">Agency · $99/mo</span>
+    </div>
+
+  </div>
+</div>
+
+<!-- CTA BANNER -->
+<div class="cta-banner">
+  <div class="cta-inner">
+    <div class="cta-text">
+      <div class="cta-title">Questions? We're <span>real people.</span></div>
+      <div class="cta-sub">Founders personally handle support during beta. Every complaint is a product insight.</div>
+    </div>
+    <button class="cta-btn" onclick="window.location.href='mailto:support@strwatch.io'">Contact support →</button>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="onboard-footer">
+  <div class="footer-inner">
+    <div class="footer-logo">STR<span>Watch</span></div>
+    <div class="footer-links">
+      <a class="footer-link" href="/">Home</a>
+      <a class="footer-link" href="/map">Map</a>
+      <a class="footer-link" href="/blog">Blog</a>
+      <a class="footer-link" href="/dashboard">Dashboard</a>
+    </div>
+  </div>
+</div>
+
+<script>
+// Step toggle
+function toggleStep(header) {
+  const card = header.closest('.step-card');
+  card.classList.toggle('open');
+}
+
+// Mark step done
+function markDone(stepNum) {
+  const card = document.querySelector(`[data-step="${stepNum}"]`);
+  if (!card) return;
+  card.classList.add('done');
+  card.classList.remove('open');
+  
+  // Open next uncompleted step
+  const next = document.querySelector(`.step-card:not(.done)`);
+  if (next) {
+    next.classList.add('open');
+    next.classList.add('active');
+    setTimeout(() => next.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+  }
+  
+  updateProgress();
+  saveState();
+}
+
+// Progress bar
+function updateProgress() {
+  const total = document.querySelectorAll('.step-card').length;
+  const done = document.querySelectorAll('.step-card.done').length;
+  const pct = Math.round((done / total) * 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-pct').textContent = done + ' / ' + total + ' complete';
+}
+
+// Persist state
+function saveState() {
+  const cards = document.querySelectorAll('.step-card');
+  const state = [];
+  cards.forEach(c => state.push(c.classList.contains('done') ? 1 : 0));
+  try { localStorage.setItem('strwatch-onboard', JSON.stringify(state)); } catch(e) {}
+}
+
+function loadState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('strwatch-onboard') || '[]');
+    const cards = document.querySelectorAll('.step-card');
+    saved.forEach((v, i) => {
+      if (cards[i] && v === 1) {
+        cards[i].classList.add('done');
+        cards[i].classList.remove('open');
+      }
+    });
+    // Open first uncompleted
+    const first = document.querySelector('.step-card:not(.done)');
+    if (first) first.classList.add('open');
+  } catch(e) {}
+  updateProgress();
+}
+
+loadState();
+</script>
+</body>
+</html>
