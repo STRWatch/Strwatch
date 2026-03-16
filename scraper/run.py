@@ -358,6 +358,15 @@ def run_all(args: List[str]) -> dict:
         log.error("County pages scraper failed: %s", e, exc_info=True)
         results["county_pages"] = {"error": str(e)}
 
+    # ── Multi-City Legistar (Denver, SF, Boston) ──
+    banner("Multi-City Legistar (Denver, SF, Boston)")
+    try:
+        from scrapers import legistar_multi
+        results["legistar_multi"] = legistar_multi.run(days_back=14)
+    except Exception as e:
+        log.error("Multi-city Legistar scraper failed: %s", e, exc_info=True)
+        results["legistar_multi"] = {"error": str(e)}
+
     # ── Deadline Reminders (runs after all scrapers) ──
     banner("Deadline Reminders")
     try:
