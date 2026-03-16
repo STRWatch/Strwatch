@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="google-site-verification" content="LcUq4lMeDR8FhFXFItFg3h6dXM3HJCn5JW8sKwcRUC0" />
 <title>STRWatch — Short-Term Rental Regulation Intelligence</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Epilogue:ital,wght@0,300;0,400;0,500;1,300;1,400&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -165,10 +164,13 @@ h2{font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(1.8rem,3.2vw,2.
 /* TESTIMONIALS */
 .testimonials{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:3rem;}
 .testimonial{background:var(--off-white);border:1.5px solid var(--border);border-radius:12px;padding:2rem;}
-.beta-markets{display:flex;align-items:center;gap:14px;margin-bottom:2.5rem;flex-wrap:wrap;}
-.beta-label{font-family:'JetBrains Mono',monospace;font-size:0.6rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint);white-space:nowrap;}
-.beta-cities{display:flex;gap:8px;flex-wrap:wrap;}
-.beta-city{font-family:'JetBrains Mono',monospace;font-size:0.62rem;letter-spacing:0.08em;padding:5px 12px;background:var(--green-pale);color:var(--green);border:1px solid var(--green-light);border-radius:100px;}
+.beta-markets{margin-bottom:2.5rem;}
+.beta-ticker-row{display:flex;align-items:center;gap:16px;}
+.beta-label{font-family:'JetBrains Mono',monospace;font-size:0.6rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint);white-space:nowrap;flex-shrink:0;}
+.beta-ticker-wrap{flex:1;overflow:hidden;mask-image:linear-gradient(90deg,transparent,#000 40px,#000 calc(100% - 40px),transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 40px,#000 calc(100% - 40px),transparent);border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:10px 0;}
+.beta-ticker-track{display:flex;gap:0;animation:betascroll 28s linear infinite;width:max-content;}
+@keyframes betascroll{from{transform:translateX(0);}to{transform:translateX(-50%);}}
+.beta-city{font-family:'JetBrains Mono',monospace;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--green);padding:0 20px;white-space:nowrap;border-right:1px solid var(--border);}
 .quote-source{font-family:'JetBrains Mono',monospace;font-size:0.58rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin-bottom:1rem;}
 .testimonial-quote{font-family:'Epilogue',sans-serif;font-style:italic;font-size:0.9rem;color:var(--text-mid);line-height:1.7;margin-bottom:1rem;}
 .testimonial-author{font-family:'JetBrains Mono',monospace;font-size:0.6rem;letter-spacing:0.06em;color:var(--text-faint);}
@@ -242,7 +244,8 @@ footer{background:var(--ink);padding:40px 60px;display:flex;align-items:center;j
   .step{padding:1.75rem 1.5rem;}
   .features-grid{grid-template-columns:1fr 1fr;}
   .feature{padding:1.5rem 1.25rem;}
-  .beta-markets{flex-direction:column;align-items:flex-start;gap:10px;}
+  .beta-ticker-row{gap:10px;}
+  .beta-label{font-size:0.55rem;}
   .testimonials{grid-template-columns:1fr;}
   .pricing-grid{grid-template-columns:1fr;}
   .bottom-cta{padding:56px 24px;}
@@ -269,7 +272,6 @@ footer{background:var(--ink);padding:40px 60px;display:flex;align-items:center;j
     <a class="nav-link" href="#how">How it works</a>
     <a class="nav-link" href="#features">Features</a>
     <a class="nav-link" href="#pricing">Pricing</a>
-    <a class="nav-link" href="/blog">Blog</a>
     <a class="nav-cta" href="https://app.strwatch.io/sign-up">Start free trial</a>
   </div>
 </nav>
@@ -370,26 +372,6 @@ footer{background:var(--ink);padding:40px 60px;display:flex;align-items:center;j
             <div class="fine-per">per violation</div>
           </div>
         </div>
-        <div class="fine-item">
-          <div>
-            <div class="fine-city">New Orleans, LA</div>
-            <div class="fine-detail">Expired residential permit · density cap violation</div>
-          </div>
-          <div>
-            <div class="fine-amount">$500</div>
-            <div class="fine-per">per day + revocation</div>
-          </div>
-        </div>
-        <div class="fine-item">
-          <div>
-            <div class="fine-city">San Diego, CA</div>
-            <div class="fine-detail">Whole-home without STRO license · Tier 3 cap</div>
-          </div>
-          <div>
-            <div class="fine-amount">$1,000</div>
-            <div class="fine-per">per day unlicensed</div>
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -410,7 +392,7 @@ footer{background:var(--ink);padding:40px 60px;display:flex;align-items:center;j
       <p class="section-lead">STRWatch monitors the source: city government sites, council agendas, planning meetings. You get the alert before anyone else.</p>
     </div>
     <div class="fade-up">
-      <div class="problem-stats" style="grid-template-columns:1fr 1fr 1fr;">
+      <div class="problem-stats">
         <div class="problem-stat">
           <div class="pstat-val">$500<span>/day</span></div>
           <div class="pstat-city">Nashville, TN</div>
@@ -430,16 +412,6 @@ footer{background:var(--ink);padding:40px 60px;display:flex;align-items:center;j
           <div class="pstat-val">$1,000<span>/violation</span></div>
           <div class="pstat-city">Scottsdale, AZ</div>
           <div class="pstat-detail">Operating without city license · unlicensed listing</div>
-        </div>
-        <div class="problem-stat">
-          <div class="pstat-val">$1,000<span>/day</span></div>
-          <div class="pstat-city">San Diego, CA</div>
-          <div class="pstat-detail">Whole-home without STRO license · Tier 3 capped at 1%</div>
-        </div>
-        <div class="problem-stat">
-          <div class="pstat-val">$500<span>/day</span></div>
-          <div class="pstat-city">New Orleans, LA</div>
-          <div class="pstat-detail">Expired residential permit · density cap violation</div>
         </div>
       </div>
     </div>
@@ -608,28 +580,11 @@ footer{background:var(--ink);padding:40px 60px;display:flex;align-items:center;j
   <div class="section-eyebrow">What hosts are saying</div>
   <h2>The problem is real.<br>We've seen the threads.</h2>
   <div class="beta-markets fade-up">
-    <div class="beta-label">Beta open in</div>
-    <div class="beta-cities">
-      <span class="beta-city">Nashville, TN</span>
-      <span class="beta-city">Austin, TX</span>
-      <span class="beta-city">Denver, CO</span>
-      <span class="beta-city">Scottsdale, AZ</span>
-      <span class="beta-city">Palm Springs, CA</span>
-      <span class="beta-city">New Orleans, LA</span>
-      <span class="beta-city">San Diego, CA</span>
-      <span class="beta-city">Charleston, SC</span>
-      <span class="beta-city">Savannah, GA</span>
-      <span class="beta-city">San Francisco, CA</span>
-      <span class="beta-city">Miami Beach, FL</span>
-      <span class="beta-city">Gatlinburg, TN</span>
-      <span class="beta-city">Asheville, NC</span>
-      <span class="beta-city">Key West, FL</span>
-      <span class="beta-city">Sedona, AZ</span>
-      <span class="beta-city">Park City, UT</span>
-      <span class="beta-city">Breckenridge, CO</span>
-      <span class="beta-city">Big Bear, CA</span>
-      <span class="beta-city">Honolulu, HI</span>
-      <span class="beta-city">Outer Banks, NC</span>
+    <div class="beta-ticker-row">
+      <div class="beta-label">Monitoring in</div>
+      <div class="beta-ticker-wrap">
+        <div class="beta-ticker-track" id="beta-ticker"></div>
+      </div>
     </div>
   </div>
   <div class="testimonials">
@@ -730,7 +685,6 @@ footer{background:var(--ink);padding:40px 60px;display:flex;align-items:center;j
 <footer>
   <div class="footer-logo">STR<span>Watch</span></div>
   <div style="display:flex;gap:20px;align-items:center;">
-    <a href="/blog" style="font-family:'JetBrains Mono',monospace;font-size:0.58rem;letter-spacing:0.06em;color:rgba(255,255,255,0.35);text-decoration:none;">Blog</a>
     <a href="/terms.html" style="font-family:'JetBrains Mono',monospace;font-size:0.58rem;letter-spacing:0.06em;color:rgba(255,255,255,0.35);text-decoration:none;">Terms of Service</a>
     <a href="/privacy.html" style="font-family:'JetBrains Mono',monospace;font-size:0.58rem;letter-spacing:0.06em;color:rgba(255,255,255,0.35);text-decoration:none;">Privacy Policy</a>
     <span class="footer-copy">© 2026 STRWatch</span>
@@ -741,9 +695,17 @@ footer{background:var(--ink);padding:40px 60px;display:flex;align-items:center;j
 const SUPABASE_URL = 'https://vnybfdzcwwsluwyznayq.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_CabidZCpx37VmIWeJT-_4w_wJ9METXY';
 
-const cities=["Nashville","Austin","Denver","Scottsdale","Palm Springs","Charleston","Savannah","New Orleans","Miami","San Diego","Portland","Seattle","Chicago","Boston","Philadelphia","Breckenridge","Asheville","Sedona","Key West","Gatlinburg","Bend","Tybee Island","Gulf Shores","Big Bear","Lake Tahoe","Park City","Jackson Hole","Telluride","Malibu","Santa Fe"];
+// Active markets (actually monitored)
+const activeMarkets=["Nashville, TN","Austin, TX","Denver, CO","Scottsdale, AZ","Palm Springs, CA","New Orleans, LA","Charleston, SC","Savannah, GA","San Francisco, CA","Miami Beach, FL","San Diego, CA","Park City, UT","Sedona, AZ","Asheville, NC","Key West, FL","Gatlinburg, TN","Breckenridge, CO","Big Bear, CA","Honolulu, HI","Outer Banks, NC"];
+
+// Big marquee: real markets + aspirational
+const cities=["Nashville","Austin","Denver","Scottsdale","Palm Springs","New Orleans","Charleston","Savannah","San Francisco","Miami Beach","San Diego","Park City","Sedona","Asheville","Key West","Gatlinburg","Breckenridge","Big Bear","Honolulu","Outer Banks","Portland","Seattle","Chicago","Boston","Bend","Lake Tahoe","Jackson Hole","Telluride","Malibu","Santa Fe"];
 function buildMarquee(){const t=document.getElementById('marquee');const d=[...cities,...cities,...cities];t.innerHTML=d.map(c=>`<div class="city-pill">${c}</div>`).join('');}
 buildMarquee();
+
+// Beta mini-ticker with active markets only
+function buildBetaTicker(){const t=document.getElementById('beta-ticker');if(!t)return;const d=[...activeMarkets,...activeMarkets,...activeMarkets];t.innerHTML=d.map(c=>`<div class="beta-city">${c}</div>`).join('');}
+buildBetaTicker();
 
 async function trackSignup(email) {
   try {
