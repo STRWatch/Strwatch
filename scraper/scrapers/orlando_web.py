@@ -1,47 +1,61 @@
 """
-scrapers/orlando_web.py — Orlando FL STR page monitoring.
+scrapers/orlando_web.py — Orlando / Orange County STR page monitoring.
 
-Orlando STR regulations (multi-jurisdictional):
-  - City of Orlando: Home Sharing Registration required ($275 initial, $100 renewal)
-  - Host must live on-site, be present, only one booking at a time
-  - Max 50% of bedrooms can be rented
-  - FL DBPR state license mandatory for all vacation rentals
-  - Orange County: 6% Tourist Development Tax
-  - State: 6% sales tax + 0.5% discretionary surtax
-  - Combined tax burden: ~13% (state + county + city resort tax)
-  - Annual permit renewal with interior inspection
-  - Osceola County (Kissimmee): restricted to tourist zones
-
-Data sources (verified March 2026):
-  - City home sharing: orlando.gov/Initiatives/Home-Sharing-Registration
-  - City planning: orlando.gov/Our-Government/Departments-Offices/Economic-Development/City-Planning
-  - Orange County TDT: orangecountyfl.net/EconomicDevelopment
+Watches:
+1. orlando.gov Home Sharing Registration page
+2. orlando.gov City Planning page
+3. Orange County Comptroller TDT page (occompt.com — actual tax authority)
 """
 
 import logging
+import config
 from scrapers.austin_web import watch_page
 
 log = logging.getLogger(__name__)
-CITY = "Orlando, FL"
 
-WATCHED_PAGES = [
-    {"name": "Orlando — Home Sharing Registration", "url": "https://www.orlando.gov/Initiatives/Home-Sharing-Registration", "priority": "high"},
-    {"name": "Orlando — City Planning STR", "url": "https://www.orlando.gov/Our-Government/Departments-Offices/Economic-Development/City-Planning", "priority": "medium"},
-    {"name": "Orange County — Economic Development (TDT)", "url": "https://www.orangecountyfl.net/EconomicDevelopment/TouristDevelopmentTax.aspx", "priority": "medium"},
+PAGES = [
+    {
+        "name": "Orlando — Home Sharing Registration",
+        "url": "https://www.orlando.gov/Initiatives/Home-Sharing-Registration",
+        "city": "Orlando",
+        "priority": "high",
+    },
+    {
+        "name": "Orlando — City Planning",
+        "url": "https://www.orlando.gov/Our-Government/Departments-Offices/Executive-Offices/CAO/City-Planning",
+        "city": "Orlando",
+        "priority": "medium",
+    },
+    {
+        "name": "Orange County — Tourist Development Tax (Comptroller)",
+        "url": "https://www.occompt.com/270/Tourist-Development-Tax",
+        "city": "Orlando",
+        "priority": "high",
+    },
 ]
+
 
 def run():
     log.info("=== Orlando page watcher starting ===")
     changes = 0
-    for page in WATCHED_PAGES:
+    for page in PAGES:
         try:
-            if watch_page(page["name"], page["url"], CITY, page["priority"]):
+            changed = watch_page(
+                name=page["name"],
+                url=page["url"],
+                city=page["city"],
+                priority=page["priority"],
+            )
+            if changed:
                 changes += 1
         except Exception as e:
             log.error("Error watching %s: %s", page["name"], e)
-    log.info("Orlando page watcher done — checked: %d | changed: %d", len(WATCHED_PAGES), changes)
-    return {"checked": len(WATCHED_PAGES), "changes": changes}
+
+    log.info("Orlando page watcher done — checked: %d | changed: %d", len(PAGES), changes)
+    return {"checked": len(PAGES), "changes": changes}
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    print(run())
+    result = run()
+    print(f"\nResult: {result}")
