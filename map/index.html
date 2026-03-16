@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>STR Regulation Map — STRWatch | Short-Term Rental Laws by City</title>
+<meta name="description" content="Interactive map of short-term rental regulations across 20 US markets. See permit requirements, fine amounts, tax rates, and enforcement status for Airbnb and VRBO hosts.">
+<meta name="keywords" content="short term rental regulations, STR laws, Airbnb regulations by city, VRBO permit requirements, vacation rental compliance">
+<link rel="canonical" href="https://strwatch.io/map">
+<meta property="og:title" content="STR Regulation Map — Every City's Rules at a Glance">
+<meta property="og:description" content="Interactive map of short-term rental regulations across 20 US markets. Permits, fines, taxes, and deadlines.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://strwatch.io/map">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Epilogue:ital,wght@0,300;0,400;0,500;1,300;1,400&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "STR Regulation Map",
+  "description": "Interactive map of short-term rental regulations across 20 US markets",
+  "url": "https://strwatch.io/map",
+  "publisher": {
+    "@type": "Organization",
+    "name": "STRWatch",
+    "url": "https://strwatch.io"
+  }
+}
+</script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a0f08;
+  --bg-card:#111a0e;
+  --bg-card-hover:#162012;
+  --border:#1e3018;
+  --border-bright:#2d5a22;
+  --green:#4db87a;
+  --green-dim:#2d7a4f;
+  --green-glow:rgba(77,184,122,0.35);
+  --green-pale:#e8f5ee;
+  --mint:#a8e6c3;
+  --text:#d4e8cc;
+  --text-dim:#7a9970;
+  --text-faint:#4a6342;
+  --white:#ffffff;
+  --red:#e85454;
+  --amber:#e8b84b;
+  --blue:#5b8def;
+}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--text);font-family:'Epilogue',system-ui,sans-serif;font-size:15px;line-height:1.6;overflow-x:hidden;min-height:100vh;}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 32px;display:flex;align-items:center;justify-content:space-between;height:56px;background:rgba(10,15,8,0.9);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);}
+.nav-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1rem;color:var(--text-dim);letter-spacing:-0.02em;}
+.nav-logo span{color:var(--green);}
+.nav-links{display:flex;align-items:center;gap:20px;}
+.nav-link{font-family:'JetBrains Mono',monospace;font-size:0.58rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);transition:color 0.2s;text-decoration:none;}
+.nav-link:hover{color:var(--text);}
+.nav-cta{font-family:'Syne',sans-serif;font-weight:600;font-size:0.7rem;padding:7px 16px;background:var(--green-dim);color:white;border-radius:5px;text-decoration:none;transition:background 0.2s;}
+.nav-cta:hover{background:var(--green);}
+
+/* HEADER */
+.page-header{padding:88px 40px 32px;max-width:1400px;margin:0 auto;}
+.header-row{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;}
+.header-eyebrow{font-family:'JetBrains Mono',monospace;font-size:0.58rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--green);margin-bottom:0.5rem;display:flex;align-items:center;gap:8px;}
+.header-eyebrow::before{content:'';width:18px;height:1.5px;background:var(--green);}
+.page-header h1{font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(1.6rem,3vw,2.4rem);color:var(--white);letter-spacing:-0.03em;line-height:1.1;}
+.page-header h1 em{color:var(--green);font-style:italic;font-family:'Epilogue',sans-serif;font-weight:300;}
+.header-stats{display:flex;gap:24px;}
+.h-stat{text-align:right;}
+.h-stat-val{font-family:'Syne',sans-serif;font-weight:800;font-size:1.3rem;color:var(--white);line-height:1;}
+.h-stat-val span{color:var(--green);}
+.h-stat-label{font-family:'JetBrains Mono',monospace;font-size:0.52rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-faint);margin-top:3px;}
+
+/* LEGEND */
+.legend{display:flex;gap:20px;padding:16px 40px;max-width:1400px;margin:0 auto;flex-wrap:wrap;}
+.legend-item{display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:0.55rem;letter-spacing:0.06em;color:var(--text-dim);}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.dot-strict{background:var(--red);box-shadow:0 0 8px rgba(232,84,84,0.4);}
+.dot-moderate{background:var(--amber);box-shadow:0 0 8px rgba(232,184,75,0.4);}
+.dot-friendly{background:var(--green);box-shadow:0 0 8px rgba(77,184,122,0.4);}
+
+/* MAP CONTAINER */
+.map-container{position:relative;max-width:1400px;margin:0 auto;padding:0 40px 20px;}
+.map-svg-wrap{position:relative;width:100%;aspect-ratio:1.8/1;max-height:560px;}
+
+/* MAP SVG — simplified US outline */
+.us-map{width:100%;height:100%;}
+.us-outline{fill:none;stroke:var(--border);stroke-width:1.2;}
+.us-fill{fill:var(--bg-card);stroke:var(--border);stroke-width:0.5;opacity:0.5;}
+
+/* MARKET DOTS */
+.market-dot{cursor:pointer;transition:all 0.2s;}
+.market-dot .dot-ring{fill:none;stroke-width:1.5;opacity:0;transition:opacity 0.3s;}
+.market-dot:hover .dot-ring{opacity:1;}
+.market-dot .dot-core{transition:r 0.2s;}
+.market-dot:hover .dot-core{r:6;}
+.market-dot .dot-pulse{animation:dotpulse 3s ease-in-out infinite;opacity:0;}
+.market-dot.active .dot-pulse{opacity:1;}
+@keyframes dotpulse{0%,100%{r:4;opacity:0;}50%{r:14;opacity:0.3;}}
+
+.market-dot.strict .dot-core{fill:var(--red);}
+.market-dot.strict .dot-ring{stroke:var(--red);}
+.market-dot.strict .dot-pulse{fill:var(--red);}
+.market-dot.moderate .dot-core{fill:var(--amber);}
+.market-dot.moderate .dot-ring{stroke:var(--amber);}
+.market-dot.moderate .dot-pulse{fill:var(--amber);}
+.market-dot.friendly .dot-core{fill:var(--green);}
+.market-dot.friendly .dot-ring{stroke:var(--green);}
+.market-dot.friendly .dot-pulse{fill:var(--green);}
+
+/* MARKET LABEL */
+.market-label{font-family:'JetBrains Mono',monospace;font-size:8px;letter-spacing:0.08em;text-transform:uppercase;fill:var(--text-faint);pointer-events:none;transition:fill 0.2s;}
+.market-dot:hover+.market-label,.market-dot.active+.market-label{fill:var(--text);}
+
+/* DETAIL PANEL */
+.detail-panel{position:fixed;top:56px;right:0;width:420px;height:calc(100vh - 56px);background:var(--bg-card);border-left:1px solid var(--border);transform:translateX(100%);transition:transform 0.35s cubic-bezier(0.4,0,0.2,1);z-index:150;overflow-y:auto;display:flex;flex-direction:column;}
+.detail-panel.open{transform:translateX(0);}
+.detail-close{position:absolute;top:16px;right:16px;width:32px;height:32px;background:var(--border);border:none;border-radius:6px;color:var(--text-dim);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.2s;z-index:10;}
+.detail-close:hover{background:var(--border-bright);}
+.detail-header{padding:24px 24px 0;flex-shrink:0;}
+.detail-severity{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:0.55rem;letter-spacing:0.12em;text-transform:uppercase;padding:4px 10px;border-radius:100px;margin-bottom:12px;}
+.severity-strict{background:rgba(232,84,84,0.15);color:var(--red);border:1px solid rgba(232,84,84,0.3);}
+.severity-moderate{background:rgba(232,184,75,0.15);color:var(--amber);border:1px solid rgba(232,184,75,0.3);}
+.severity-friendly{background:rgba(77,184,122,0.15);color:var(--green);border:1px solid rgba(77,184,122,0.3);}
+.detail-city{font-family:'Syne',sans-serif;font-weight:800;font-size:1.5rem;color:var(--white);letter-spacing:-0.02em;line-height:1.15;margin-bottom:4px;}
+.detail-sub{font-family:'Epilogue',sans-serif;font-size:0.82rem;color:var(--text-dim);margin-bottom:20px;}
+.detail-body{padding:0 24px 24px;flex:1;}
+.detail-section{margin-bottom:20px;}
+.detail-section-title{font-family:'JetBrains Mono',monospace;font-size:0.55rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-faint);margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.detail-stat{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px;}
+.detail-stat-val{font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;color:var(--white);line-height:1;}
+.detail-stat-label{font-family:'JetBrains Mono',monospace;font-size:0.5rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-faint);margin-top:4px;}
+.detail-rules{list-style:none;display:flex;flex-direction:column;gap:8px;}
+.detail-rule{font-family:'Epilogue',sans-serif;font-size:0.82rem;color:var(--text-dim);display:flex;gap:8px;align-items:flex-start;line-height:1.5;}
+.rule-icon{flex-shrink:0;margin-top:2px;}
+.detail-cta-wrap{padding:0 24px 24px;flex-shrink:0;}
+.detail-cta{display:block;text-align:center;font-family:'Syne',sans-serif;font-weight:700;font-size:0.78rem;padding:12px;background:var(--green-dim);color:white;border-radius:8px;text-decoration:none;transition:background 0.2s;}
+.detail-cta:hover{background:var(--green);}
+.detail-source{font-family:'JetBrains Mono',monospace;font-size:0.5rem;color:var(--text-faint);text-align:center;padding:0 24px 16px;}
+
+/* CITY GRID — below the map */
+.city-grid-section{max-width:1400px;margin:0 auto;padding:20px 40px 60px;}
+.grid-title{font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;color:var(--text-dim);margin-bottom:16px;}
+.city-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;}
+.city-card{background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:10px;}
+.city-card:hover{border-color:var(--border-bright);background:var(--bg-card-hover);}
+.cc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.cc-name{font-family:'Syne',sans-serif;font-weight:600;font-size:0.82rem;color:var(--text);flex:1;}
+.cc-tag{font-family:'JetBrains Mono',monospace;font-size:0.5rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-faint);}
+
+/* BOTTOM CTA */
+.map-bottom-cta{background:var(--bg-card);border-top:1px solid var(--border);padding:40px;text-align:center;}
+.map-bottom-cta p{font-family:'Epilogue',sans-serif;font-size:0.95rem;color:var(--text-dim);margin-bottom:16px;}
+.map-bottom-cta p strong{color:var(--green);}
+.map-bottom-cta a{font-family:'Syne',sans-serif;font-weight:700;font-size:0.8rem;padding:12px 28px;background:var(--green-dim);color:white;border-radius:8px;text-decoration:none;transition:background 0.2s;display:inline-block;}
+.map-bottom-cta a:hover{background:var(--green);}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+  .detail-panel{width:100%;top:auto;bottom:0;left:0;right:0;height:70vh;transform:translateY(100%);border-left:none;border-top:1px solid var(--border);border-radius:16px 16px 0 0;}
+  .detail-panel.open{transform:translateY(0);}
+  .page-header{padding:80px 20px 20px;}
+  .legend,.map-container,.city-grid-section{padding-left:20px;padding-right:20px;}
+  .header-row{flex-direction:column;align-items:flex-start;}
+  .header-stats{align-self:flex-start;}
+}
+@media(max-width:600px){
+  .city-grid{grid-template-columns:1fr 1fr;}
+  .map-svg-wrap{aspect-ratio:1.4/1;}
+  .legend{gap:12px;}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="/">STR<span>Watch</span></a>
+  <div class="nav-links">
+    <a class="nav-link" href="/#how">How it works</a>
+    <a class="nav-link" href="/#pricing">Pricing</a>
+    <a class="nav-link" href="/blog">Blog</a>
+    <a class="nav-cta" href="/#waitlist">Get alerts</a>
+  </div>
+</nav>
+
+<div class="page-header">
+  <div class="header-row">
+    <div>
+      <div class="header-eyebrow">STR Regulation Map</div>
+      <h1>Every city's rules<br><em>at a glance.</em></h1>
+    </div>
+    <div class="header-stats">
+      <div class="h-stat">
+        <div class="h-stat-val">20<span>+</span></div>
+        <div class="h-stat-label">Markets tracked</div>
+      </div>
+      <div class="h-stat">
+        <div class="h-stat-val">48<span>hr</span></div>
+        <div class="h-stat-label">Alert SLA</div>
+      </div>
+      <div class="h-stat">
+        <div class="h-stat-val">$29<span>/mo</span></div>
+        <div class="h-stat-label">Real-time alerts</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot dot-strict"></div>Strict — heavy regulation, caps, or bans</div>
+  <div class="legend-item"><div class="legend-dot dot-moderate"></div>Moderate — permits required, some restrictions</div>
+  <div class="legend-item"><div class="legend-dot dot-friendly"></div>Friendly — minimal barriers, permit-only</div>
+</div>
+
+<div class="map-container">
+  <div class="map-svg-wrap">
+    <svg class="us-map" viewBox="0 0 960 600" preserveAspectRatio="xMidYMid meet" id="map-svg">
+      <!-- Simplified US outline path -->
+      <path class="us-fill" d="M833,532 L838,537 843,530 849,525 854,528 862,524 870,519 878,522 880,515 886,510 894,512 900,506 895,498 888,492 890,484 896,478 892,470 886,464 880,458 878,450 884,442 890,436 895,430 892,422 898,414 904,408 910,400 906,392 900,386 894,380 888,374 882,368 876,360 870,354 864,348 858,340 852,334 846,326 840,320 834,312 828,306 822,300 816,294 810,288 804,282 798,276 792,268 786,262 780,256 774,250 768,244 762,238 756,230 750,224 744,218 738,210 732,204 726,198 720,192 714,186 708,178 702,172 696,166 690,160 684,154 678,148 672,140 666,136 660,132 654,128 648,124 642,120 636,116 630,112 624,108 618,104 612,100 606,98 600,96 594,94 588,92 582,90 576,88 570,86 564,84 558,82 552,80 546,80 540,78 534,78 528,78 522,78 516,78 510,78 504,80 498,80 492,82 486,84 480,86 474,88 468,92 462,94 456,98 450,102 444,106 438,110 432,116 426,120 420,126 414,130 408,136 402,142 396,148 390,154 384,160 378,168 372,174 366,182 360,188 354,194 348,202 342,210 336,218 330,226 324,234 318,242 312,250 306,258 300,268 294,276 288,286 282,294 276,304 272,312 268,320 264,328 260,336 256,344 254,352 252,360 250,366 248,374 246,380 244,386 242,392 240,398 238,404 236,410 234,414 232,420 230,424 226,430 222,436 218,442 214,446 210,452 206,456 200,462 194,466 188,470 182,472 176,474 170,476 164,478 158,478 152,478 146,478 140,476 134,474 128,472 122,468 118,464 114,458 112,452 108,446 106,440 104,432 102,424 100,416 100,408 100,400 100,392 102,384 104,376 106,368 110,360 114,354 118,346 122,340 128,332 134,326 140,320 148,314 154,308 162,302 170,298 178,294 186,290 194,288 202,286 210,286 218,286 226,288 234,290 242,294 248,298 256,304 262,310 268,318 274,326 280,334 286,344 290,354 294,362 298,372 302,382 304,392 306,402 308,412 308,422 308,432 306,440 304,450 300,458 296,466 290,474 284,480 278,486 270,492 264,496 256,500 248,504 240,506 232,508 224,510 216,510 208,510 200,508 192,506 186,504 178,500 172,496 166,492 160,486 156,480 150,474 146,468 142,460 138,454 136,446 134,438 132,430 132,422 132,414 132,406 134,398 136,390 140,384 144,376 148,370 154,364 160,358 168,354 176,350 184,348 192,346 200,346 208,348 216,352 222,356 230,362 236,368 242,376 248,384 252,392 256,402 260,412 262,422 264,432 264,442 264,452 262,462 258,470 254,478 248,486 242,492 234,498 226,502 218,506 210,508 200,510 192,510 182,510 174,508 166,504 158,500 152,494 146,488 140,480 136,474 132,466 128,458 126,448 124,440 124,430 124,420" opacity="0"/>
+
+      <!-- State boundaries simplified as region blocks -->
+      <g id="us-regions" opacity="0.15">
+        <!-- West -->
+        <rect x="60" y="100" width="240" height="320" rx="4" fill="var(--green)" opacity="0.06" stroke="var(--border)" stroke-width="0.5"/>
+        <!-- Mountain -->
+        <rect x="300" y="80" width="180" height="340" rx="4" fill="var(--amber)" opacity="0.06" stroke="var(--border)" stroke-width="0.5"/>
+        <!-- Central -->
+        <rect x="480" y="100" width="160" height="300" rx="4" fill="var(--green)" opacity="0.04" stroke="var(--border)" stroke-width="0.5"/>
+        <!-- Southeast -->
+        <rect x="640" y="200" width="200" height="260" rx="4" fill="var(--red)" opacity="0.06" stroke="var(--border)" stroke-width="0.5"/>
+        <!-- Northeast -->
+        <rect x="750" y="80" width="160" height="180" rx="4" fill="var(--amber)" opacity="0.06" stroke="var(--border)" stroke-width="0.5"/>
+      </g>
+
+      <!-- Grid lines for atmosphere -->
+      <g opacity="0.08">
+        <line x1="0" y1="150" x2="960" y2="150" stroke="var(--green)" stroke-width="0.5" stroke-dasharray="4 8"/>
+        <line x1="0" y1="300" x2="960" y2="300" stroke="var(--green)" stroke-width="0.5" stroke-dasharray="4 8"/>
+        <line x1="0" y1="450" x2="960" y2="450" stroke="var(--green)" stroke-width="0.5" stroke-dasharray="4 8"/>
+        <line x1="240" y1="0" x2="240" y2="600" stroke="var(--green)" stroke-width="0.5" stroke-dasharray="4 8"/>
+        <line x1="480" y1="0" x2="480" y2="600" stroke="var(--green)" stroke-width="0.5" stroke-dasharray="4 8"/>
+        <line x1="720" y1="0" x2="720" y2="600" stroke="var(--green)" stroke-width="0.5" stroke-dasharray="4 8"/>
+      </g>
+
+      <!-- Market dots will be injected here by JS -->
+      <g id="market-dots"></g>
+    </svg>
+  </div>
+</div>
+
+<!-- City grid below map -->
+<div class="city-grid-section">
+  <div class="grid-title">All monitored markets</div>
+  <div class="city-grid" id="city-grid"></div>
+</div>
+
+<!-- Detail slide-out panel -->
+<div class="detail-panel" id="detail-panel">
+  <button class="detail-close" onclick="closePanel()" aria-label="Close">✕</button>
+  <div class="detail-header">
+    <div class="detail-severity" id="d-severity"></div>
+    <div class="detail-city" id="d-city"></div>
+    <div class="detail-sub" id="d-sub"></div>
+  </div>
+  <div class="detail-body">
+    <div class="detail-section">
+      <div class="detail-section-title">At a glance</div>
+      <div class="detail-grid" id="d-stats"></div>
+    </div>
+    <div class="detail-section">
+      <div class="detail-section-title">Key regulations</div>
+      <ul class="detail-rules" id="d-rules"></ul>
+    </div>
+    <div class="detail-section" id="d-deadline-section" style="display:none;">
+      <div class="detail-section-title">Upcoming deadline</div>
+      <div id="d-deadline" style="background:rgba(232,84,84,0.1);border:1px solid rgba(232,84,84,0.2);border-radius:8px;padding:12px 14px;"></div>
+    </div>
+  </div>
+  <div class="detail-cta-wrap">
+    <a class="detail-cta" href="/#waitlist">Get alerts for this market →</a>
+  </div>
+  <div class="detail-source" id="d-source"></div>
+</div>
+
+<!-- Overlay for mobile panel -->
+<div id="overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:140;" onclick="closePanel()"></div>
+
+<!-- Bottom CTA -->
+<div class="map-bottom-cta">
+  <p>Don't see your market? We're expanding to <strong>50 cities by Q3 2026</strong>.</p>
+  <a href="/#waitlist">Join the waitlist — it's free</a>
+</div>
+
+<script>
+// ── Market data ──────────────────────────────────────────────────────────────
+const markets = [
+  {
+    id:"nashville", city:"Nashville", state:"TN", severity:"strict",
+    x:680, y:320,
+    tagline:"One of the strictest STR enforcement regimes in the Southeast",
+    stats:[
+      {val:"$500",label:"Fine per day unlicensed"},
+      {val:"Type 1–3",label:"Permit tiers"},
+      {val:"$50–313",label:"Permit fee range"},
+      {val:"Annual",label:"Renewal required"},
+    ],
+    rules:[
+      "Owner-occupied (Type 1) vs non-owner (Type 2/3) permit system",
+      "Non-owner permits subject to density caps per census tract",
+      "Must display permit number on all listings",
+      "Metro Council actively passing new restrictions in 2026",
+    ],
+    deadline:null,
+    source:"Nashville Metro Clerk · Legistar API"
+  },
+  {
+    id:"austin", city:"Austin", state:"TX", severity:"strict",
+    x:490, y:420,
+    tagline:"July 1, 2026: unlicensed STRs removed from all platforms",
+    stats:[
+      {val:"$3,000+",label:"Fine + permit revocation"},
+      {val:"Type 1–3",label:"License categories"},
+      {val:"$535",label:"License fee"},
+      {val:"July 1",label:"Enforcement deadline"},
+    ],
+    rules:[
+      "Platform enforcement begins July 1, 2026 — Airbnb/VRBO will delist",
+      "Type 2 (non-owner) banned in most residential zones",
+      "Annual license renewal, fire inspection required",
+      "Zoning reclassifications changing eligibility in multiple neighborhoods",
+    ],
+    deadline:{date:"July 1, 2026",text:"Unlicensed STRs removed from all booking platforms"},
+    source:"austintexas.gov · SODA API"
+  },
+  {
+    id:"denver", city:"Denver", state:"CO", severity:"moderate",
+    x:370, y:250,
+    tagline:"Primary residence requirement with active license database",
+    stats:[
+      {val:"$1,000",label:"Fine per night over cap"},
+      {val:"7,449",label:"Active licenses"},
+      {val:"$100",label:"License fee"},
+      {val:"Annual",label:"Renewal required"},
+    ],
+    rules:[
+      "Must be your primary residence (lived there 300+ days/year)",
+      "Only one STR license per person",
+      "License number must appear on all advertisements",
+      "Night cap limits under new 2026 ordinances",
+    ],
+    deadline:null,
+    source:"Colorado SODA API · data.colorado.gov"
+  },
+  {
+    id:"scottsdale", city:"Scottsdale", state:"AZ", severity:"moderate",
+    x:280, y:380,
+    tagline:"3,000+ active permits with AZ state preemption limiting local bans",
+    stats:[
+      {val:"3,002",label:"Active permits"},
+      {val:"$250",label:"Annual fee"},
+      {val:"12.57%",label:"Combined tax rate"},
+      {val:"Annual",label:"Fire inspection"},
+    ],
+    rules:[
+      "AZ state law preempts outright STR bans but allows regulation",
+      "Verified complaint system — 3 violations = permit revocation",
+      "24/7 local contact required within 60 minutes",
+      "Party house ordinance with enhanced penalties",
+    ],
+    deadline:null,
+    source:"Scottsdale ArcGIS Portal"
+  },
+  {
+    id:"palmsprings", city:"Palm Springs", state:"CA", severity:"strict",
+    x:180, y:370,
+    tagline:"Vacation rental caps and TOT enforcement in resort zones",
+    stats:[
+      {val:"$500",label:"Fine per day unlicensed"},
+      {val:"13.5%",label:"Transient Occupancy Tax"},
+      {val:"Capped",label:"Permits limited by zone"},
+      {val:"Annual",label:"Renewal + inspection"},
+    ],
+    rules:[
+      "STR permits capped — waitlist in some zones",
+      "TOT license renewal missed = immediate fine",
+      "Noise monitoring and occupancy limits enforced",
+      "Distinct zones with different rules (Type 1, 2, Homeshare)",
+    ],
+    deadline:null,
+    source:"palmspringsca.gov"
+  },
+  {
+    id:"neworleans", city:"New Orleans", state:"LA", severity:"strict",
+    x:620, y:430,
+    tagline:"Banned in French Quarter residential, strict everywhere else",
+    stats:[
+      {val:"1,300+",label:"Active licenses"},
+      {val:"Banned",label:"In FQ residential"},
+      {val:"$1,000+",label:"Fines for violations"},
+      {val:"Annual",label:"Renewal required"},
+    ],
+    rules:[
+      "Whole-home STRs banned in French Quarter residential zones",
+      "Commercial and accessory permits in other zones",
+      "Platform accountability law — Airbnb must verify permits",
+      "Active enforcement with dedicated STR unit",
+    ],
+    deadline:null,
+    source:"New Orleans Legistar · SODA API"
+  },
+  {
+    id:"charleston", city:"Charleston", state:"SC", severity:"strict",
+    x:770, y:370,
+    tagline:"Peninsula severely restricted, whole-home only in commercial zones",
+    stats:[
+      {val:"~700",label:"Active permits"},
+      {val:"$500+",label:"Annual permit fee"},
+      {val:"Non-transferable",label:"Permits tied to owner"},
+      {val:"Annual",label:"Renewal required"},
+    ],
+    rules:[
+      "Peninsula: owner must be primary resident and present during stay",
+      "Whole-home rentals only in commercial/mixed-use zones",
+      "Permits are non-transferable — don't survive property sale",
+      "Active task force reviewing further restrictions",
+    ],
+    deadline:null,
+    source:"charleston-sc.gov"
+  },
+  {
+    id:"savannah", city:"Savannah", state:"GA", severity:"strict",
+    x:770, y:390,
+    tagline:"STVR overlay district with per-ward density caps",
+    stats:[
+      {val:"20%",label:"Cap per ward"},
+      {val:"$400",label:"Application fee"},
+      {val:"$250",label:"Annual renewal"},
+      {val:"Annual",label:"Certificate expires"},
+    ],
+    rules:[
+      "Limited to STVR Overlay District (Downtown, Victorian, Streetcar historic)",
+      "20% cap of residential parcels per ward — some wards at capacity",
+      "Certificates expire annually, must reapply",
+      "Permits tracked via Deckard public portal",
+    ],
+    deadline:null,
+    source:"savannahga.gov · Deckard Portal"
+  },
+  {
+    id:"sf", city:"San Francisco", state:"CA", severity:"strict",
+    x:120, y:220,
+    tagline:"90-night cap, permanent residency requirement, quarterly reporting",
+    stats:[
+      {val:"90",label:"Night cap (un-hosted)"},
+      {val:"$925",label:"Application fee"},
+      {val:"14%",label:"Transient Occupancy Tax"},
+      {val:"Quarterly",label:"Reporting required"},
+    ],
+    rules:[
+      "Must be permanent resident (275+ nights/year at property)",
+      "90-night annual cap on un-hosted stays",
+      "Quarterly reporting of all rental nights to OSTR",
+      "Max 5 simultaneous bookings",
+    ],
+    deadline:null,
+    source:"sfplanning.org · sf.gov"
+  },
+  {
+    id:"miamibeach", city:"Miami Beach", state:"FL", severity:"strict",
+    x:810, y:480,
+    tagline:"$20,000 first offense fine — most aggressive enforcement in the US",
+    stats:[
+      {val:"$20,000",label:"First offense fine"},
+      {val:"4",label:"Separate licenses needed"},
+      {val:"3",label:"Jurisdictions to comply with"},
+      {val:"$100K+",label:"Repeat offender fines"},
+    ],
+    rules:[
+      "Only legal in specific commercial/resort zoning districts",
+      "Requires FL DBPR license + City BTR + Resort Tax + Miami-Dade CoU",
+      "Each subsequent offense fine increases by $20,000",
+      "\"Practice Safe Renting\" public lookup portal for verification",
+    ],
+    deadline:null,
+    source:"miamibeachfl.gov · miamidade.gov"
+  },
+  {
+    id:"sandiego", city:"San Diego", state:"CA", severity:"moderate",
+    x:175, y:380,
+    tagline:"Tiered system with mission-area caps and lottery",
+    stats:[
+      {val:"Tiered",label:"Permit system"},
+      {val:"1%",label:"Whole-home cap (some zones)"},
+      {val:"12.5%",label:"Combined TOT"},
+      {val:"Annual",label:"Renewal required"},
+    ],
+    rules:[
+      "Tier 1 (home-share) relatively easy to obtain",
+      "Tier 2 (whole-home) subject to community caps",
+      "Some mission areas use lottery system for new permits",
+      "Platform compliance law requires permit display",
+    ],
+    deadline:null,
+    source:"sandiego.gov"
+  },
+  {
+    id:"parkcity", city:"Park City", state:"UT", severity:"moderate",
+    x:330, y:230,
+    tagline:"Nightly rental license required, restricted to resort zones",
+    stats:[
+      {val:"Required",label:"Nightly Rental License"},
+      {val:"Resort",label:"Zones only"},
+      {val:"~8%",label:"Combined tax rate"},
+      {val:"Annual",label:"Renewal + inspection"},
+    ],
+    rules:[
+      "Only allowed in designated resort zones (Old Town, Canyons Village)",
+      "Prohibited in residential zones like Prospector",
+      "Building inspection and parking plan required",
+      "24/7 local contact must be on file with city",
+    ],
+    deadline:null,
+    source:"parkcity.gov"
+  },
+  {
+    id:"sedona", city:"Sedona", state:"AZ", severity:"moderate",
+    x:290, y:350,
+    tagline:"1,200+ permits, 20% of housing is STR, housing emergency declared",
+    stats:[
+      {val:"1,200+",label:"Active permits"},
+      {val:"20%",label:"Housing = STR"},
+      {val:"~13.5%",label:"Tax rate (varies by county)"},
+      {val:"Annual",label:"Permit + TPT license"},
+    ],
+    rules:[
+      "Annual STR permit required from City of Sedona",
+      "AZ TPT (Transaction Privilege Tax) license required from state",
+      "Neighbor notification required for adjacent properties",
+      "24/7 emergency contact within 60 minutes response time",
+    ],
+    deadline:null,
+    source:"sedonaaz.gov"
+  },
+  {
+    id:"asheville", city:"Asheville", state:"NC", severity:"strict",
+    x:740, y:320,
+    tagline:"Whole-home STRs banned in all residential zones since 2018",
+    stats:[
+      {val:"Banned",label:"Whole-home in residential"},
+      {val:"$208",label:"Homestay permit fee"},
+      {val:"2 rooms",label:"Max for homestay"},
+      {val:"Annual",label:"Renewal required"},
+    ],
+    rules:[
+      "Only 'homestays' allowed: owner-present, max 2 bedrooms",
+      "Whole-home STRs only in commercially zoned areas",
+      "Dedicated STR enforcement employee on staff",
+      "Buncombe County (outside city) much more permissive",
+    ],
+    deadline:null,
+    source:"ashevillenc.gov"
+  },
+  {
+    id:"keywest", city:"Key West", state:"FL", severity:"strict",
+    x:790, y:510,
+    tagline:"Finite license supply — permits trade for $400K–$500K+",
+    stats:[
+      {val:"$400K+",label:"License resale value"},
+      {val:"Finite",label:"No new licenses issued"},
+      {val:"12.5%",label:"Total tax rate"},
+      {val:"$118K",label:"Avg annual STR revenue"},
+    ],
+    rules:[
+      "No new transient licenses being issued — finite supply",
+      "Licenses trade on secondary market at extreme premiums",
+      "FL DBPR + City BTR + Monroe County BTR all required",
+      "24/7 contact required, license medallion on property",
+    ],
+    deadline:null,
+    source:"cityofkeywest-fl.gov"
+  },
+  {
+    id:"gatlinburg", city:"Gatlinburg", state:"TN", severity:"moderate",
+    x:720, y:310,
+    tagline:"Highest STR density in the US — Tourist Residency permit required",
+    stats:[
+      {val:"$200+",label:"TR permit base fee"},
+      {val:"12.75%",label:"Sales + lodging tax"},
+      {val:"12",label:"Max occupancy cap"},
+      {val:"Annual",label:"Fire inspection"},
+    ],
+    rules:[
+      "Tourist Residency (TR) permit: $200 base + $75/extra bedroom",
+      "Prohibited in R-1A and R-2A residential zones",
+      "Non-owner properties classified commercial (40% tax rate)",
+      "Sevier County STRU inspection program since Jan 2024",
+    ],
+    deadline:null,
+    source:"gatlinburgtn.gov · seviercountytn.gov"
+  },
+  {
+    id:"breckenridge", city:"Breckenridge", state:"CO", severity:"moderate",
+    x:360, y:255,
+    tagline:"4 STR zones with caps and active waitlists",
+    stats:[
+      {val:"4",label:"STR zones"},
+      {val:"$250",label:"Annual license fee"},
+      {val:"Waitlist",label:"In Zone 2 & 3"},
+      {val:"May 31",label:"Annual expiration"},
+    ],
+    rules:[
+      "Zone 2 Downtown Core: 130 allowed — waitlist active",
+      "Zone 3 Single Family: 390 allowed — 160+ person waitlist",
+      "Responsible Agent required (60-min response, 24/7)",
+      "Summit County also has basin-level caps on STR licenses",
+    ],
+    deadline:null,
+    source:"townofbreckenridge.com · summitcountyco.gov"
+  },
+  {
+    id:"bigbear", city:"Big Bear", state:"CA", severity:"moderate",
+    x:185, y:350,
+    tagline:"$5,000 fine for unlicensed operation, certification exam required",
+    stats:[
+      {val:"$5,000",label:"Unlicensed fine"},
+      {val:"$2,500",label:"No-permit-# ad fine"},
+      {val:"10%",label:"TOT (as of Jan 2025)"},
+      {val:"100%",label:"Cert exam pass score"},
+    ],
+    rules:[
+      "Vacation Rental Program registration + inspection required",
+      "Owner and Agent certification exam (25 questions, must score 100%)",
+      "Off-street paved parking required by 2026",
+      "TOT increased to 10% via Measure P (Jan 2025)",
+    ],
+    deadline:null,
+    source:"citybigbearlake.com"
+  },
+  {
+    id:"honolulu", city:"Honolulu", state:"HI", severity:"strict",
+    x:140, y:500,
+    tagline:"STRs only in resort zones, NUC renewals Sept 1–Oct 15",
+    stats:[
+      {val:"Resort",label:"Zones only"},
+      {val:"~15%",label:"GET + TAT + county"},
+      {val:"Annual",label:"Registration renewal"},
+      {val:"Oct 15",label:"NUC renewal deadline"},
+    ],
+    rules:[
+      "STRs only in resort-zoned areas and specific apartment zones",
+      "Existing NUC holders must renew annually Sept 1–Oct 15 or lose it",
+      "Registration required under Ordinance 22-7 and 25-52",
+      "Dedicated STR Enforcement Branch with complaint hotline",
+    ],
+    deadline:{date:"Oct 15, 2026",text:"NUC renewal deadline — failure = automatic loss of certificate"},
+    source:"honolulu.gov/dpp"
+  },
+  {
+    id:"outerbanks", city:"Outer Banks", state:"NC", severity:"friendly",
+    x:820, y:310,
+    tagline:"Generally STR-friendly but registration now required in most towns",
+    stats:[
+      {val:"$100",label:"Nags Head late penalty"},
+      {val:"6%",label:"Dare County occupancy tax"},
+      {val:"12.75%",label:"Total tax burden"},
+      {val:"Required",label:"STR registration"},
+    ],
+    rules:[
+      "Multiple jurisdictions: Dare County, KDH, Nags Head, Duck, etc.",
+      "Nags Head: $25 registration, $100 fine + $50/day if unregistered",
+      "NC Vacation Rental Act requires written agreement for all guests",
+      "Generally friendly — NC state preemption limits local restrictions",
+    ],
+    deadline:null,
+    source:"darenc.gov · nagsheadnc.gov · kdhnc.com"
+  },
+];
+
+// ── Render dots on map ───────────────────────────────────────────────────────
+const dotsG = document.getElementById('market-dots');
+
+markets.forEach((m,i) => {
+  const g = document.createElementNS("http://www.w3.org/2000/svg","g");
+  g.classList.add("market-dot", m.severity);
+  g.setAttribute("data-id", m.id);
+  g.style.animationDelay = `${i * 0.15}s`;
+  g.onclick = () => openPanel(m.id);
+
+  // Pulse ring
+  const pulse = document.createElementNS("http://www.w3.org/2000/svg","circle");
+  pulse.setAttribute("cx", m.x);
+  pulse.setAttribute("cy", m.y);
+  pulse.setAttribute("r", "4");
+  pulse.classList.add("dot-pulse");
+  pulse.style.animationDelay = `${i * 0.4}s`;
+
+  // Hover ring
+  const ring = document.createElementNS("http://www.w3.org/2000/svg","circle");
+  ring.setAttribute("cx", m.x);
+  ring.setAttribute("cy", m.y);
+  ring.setAttribute("r", "12");
+  ring.classList.add("dot-ring");
+
+  // Core dot
+  const core = document.createElementNS("http://www.w3.org/2000/svg","circle");
+  core.setAttribute("cx", m.x);
+  core.setAttribute("cy", m.y);
+  core.setAttribute("r", "4.5");
+  core.classList.add("dot-core");
+
+  g.appendChild(pulse);
+  g.appendChild(ring);
+  g.appendChild(core);
+  dotsG.appendChild(g);
+
+  // Label
+  const label = document.createElementNS("http://www.w3.org/2000/svg","text");
+  label.setAttribute("x", m.x);
+  label.setAttribute("y", m.y - 12);
+  label.setAttribute("text-anchor", "middle");
+  label.classList.add("market-label");
+  label.textContent = m.city;
+  dotsG.appendChild(label);
+});
+
+// ── Render city grid ─────────────────────────────────────────────────────────
+const gridEl = document.getElementById('city-grid');
+const severityLabel = {strict:"Strict",moderate:"Moderate",friendly:"Friendly"};
+const severityColor = {strict:"var(--red)",moderate:"var(--amber)",friendly:"var(--green)"};
+
+markets.sort((a,b) => a.city.localeCompare(b.city)).forEach(m => {
+  const card = document.createElement('div');
+  card.className = 'city-card';
+  card.onclick = () => openPanel(m.id);
+  card.innerHTML = `
+    <div class="cc-dot" style="background:${severityColor[m.severity]};box-shadow:0 0 6px ${severityColor[m.severity]}"></div>
+    <div class="cc-name">${m.city}, ${m.state}</div>
+    <div class="cc-tag">${severityLabel[m.severity]}</div>
+  `;
+  gridEl.appendChild(card);
+});
+
+// ── Detail panel ─────────────────────────────────────────────────────────────
+const panel = document.getElementById('detail-panel');
+const overlay = document.getElementById('overlay');
+let activeMarket = null;
+
+function openPanel(id) {
+  const m = markets.find(x => x.id === id);
+  if (!m) return;
+
+  // Update active dot
+  document.querySelectorAll('.market-dot').forEach(d => d.classList.remove('active'));
+  const dot = document.querySelector(`.market-dot[data-id="${id}"]`);
+  if (dot) dot.classList.add('active');
+
+  // Severity badge
+  const sev = document.getElementById('d-severity');
+  sev.textContent = severityLabel[m.severity];
+  sev.className = `detail-severity severity-${m.severity}`;
+
+  document.getElementById('d-city').textContent = `${m.city}, ${m.state}`;
+  document.getElementById('d-sub').textContent = m.tagline;
+
+  // Stats grid
+  const statsEl = document.getElementById('d-stats');
+  statsEl.innerHTML = m.stats.map(s => `
+    <div class="detail-stat">
+      <div class="detail-stat-val">${s.val}</div>
+      <div class="detail-stat-label">${s.label}</div>
+    </div>
+  `).join('');
+
+  // Rules
+  const rulesEl = document.getElementById('d-rules');
+  rulesEl.innerHTML = m.rules.map(r => `
+    <li class="detail-rule">
+      <span class="rule-icon" style="color:${severityColor[m.severity]}">›</span>
+      ${r}
+    </li>
+  `).join('');
+
+  // Deadline
+  const dlSection = document.getElementById('d-deadline-section');
+  if (m.deadline) {
+    dlSection.style.display = 'block';
+    document.getElementById('d-deadline').innerHTML = `
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;color:var(--red);margin-bottom:4px;">${m.deadline.date}</div>
+      <div style="font-family:'Epilogue',sans-serif;font-size:0.8rem;color:var(--text-dim);">${m.deadline.text}</div>
+    `;
+  } else {
+    dlSection.style.display = 'none';
+  }
+
+  document.getElementById('d-source').textContent = `Source: ${m.source}`;
+
+  panel.classList.add('open');
+  overlay.style.display = 'block';
+  activeMarket = id;
+}
+
+function closePanel() {
+  panel.classList.remove('open');
+  overlay.style.display = 'none';
+  document.querySelectorAll('.market-dot').forEach(d => d.classList.remove('active'));
+  activeMarket = null;
+}
+
+// Close on Escape
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+
+// Animate dots on load
+setTimeout(() => {
+  document.querySelectorAll('.market-dot').forEach((d,i) => {
+    setTimeout(() => d.classList.add('active'), i * 80);
+    setTimeout(() => d.classList.remove('active'), i * 80 + 2000);
+  });
+}, 500);
+</script>
+</body>
+</html>
