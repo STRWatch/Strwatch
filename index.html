@@ -285,7 +285,7 @@ footer{background:var(--ink);padding:40px 60px;display:flex;align-items:center;j
     <div class="hero-content">
       <div class="hero-badge">
         <div class="hero-badge-dot"></div>
-        Monitoring 20 US markets
+        Monitoring 30 US markets
       </div>
       <h1>Never miss a<br><em>regulation change</em><br>that <span class="accent">costs you.</span></h1>
       <p class="hero-sub">STRWatch watches city hall so you don't have to. 48-hour alerts on permit deadlines, ordinance changes, and enforcement actions — personalized to your properties.</p>
@@ -696,10 +696,10 @@ const SUPABASE_URL = 'https://vnybfdzcwwsluwyznayq.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_CabidZCpx37VmIWeJT-_4w_wJ9METXY';
 
 // Active markets (actually monitored)
-const activeMarkets=["Nashville, TN","Austin, TX","Denver, CO","Scottsdale, AZ","Palm Springs, CA","New Orleans, LA","Charleston, SC","Savannah, GA","San Francisco, CA","Miami Beach, FL","San Diego, CA","Park City, UT","Sedona, AZ","Asheville, NC","Key West, FL","Gatlinburg, TN","Breckenridge, CO","Big Bear, CA","Honolulu, HI","Outer Banks, NC"];
+const activeMarkets=["Nashville, TN","Austin, TX","Denver, CO","Scottsdale, AZ","Palm Springs, CA","New Orleans, LA","Charleston, SC","Savannah, GA","San Francisco, CA","Miami Beach, FL","San Diego, CA","Park City, UT","Sedona, AZ","Asheville, NC","Key West, FL","Gatlinburg, TN","Breckenridge, CO","Big Bear, CA","Honolulu, HI","Outer Banks, NC","New York City, NY","Los Angeles, CA","Orlando, FL","Las Vegas, NV","Boston, MA","Portland, OR","Destin/30A, FL","Maui, HI","Tybee Island, GA","Lake Tahoe, CA"];
 
-// Big marquee: real markets + aspirational
-const cities=["Nashville","Austin","Denver","Scottsdale","Palm Springs","New Orleans","Charleston","Savannah","San Francisco","Miami Beach","San Diego","Park City","Sedona","Asheville","Key West","Gatlinburg","Breckenridge","Big Bear","Honolulu","Outer Banks","Portland","Seattle","Chicago","Boston","Bend","Lake Tahoe","Jackson Hole","Telluride","Malibu","Santa Fe"];
+// Big marquee: all 30 real markets
+const cities=["Nashville","Austin","Denver","Scottsdale","Palm Springs","New Orleans","Charleston","Savannah","San Francisco","Miami Beach","San Diego","Park City","Sedona","Asheville","Key West","Gatlinburg","Breckenridge","Big Bear","Honolulu","Outer Banks","New York City","Los Angeles","Orlando","Las Vegas","Boston","Portland","Destin · 30A","Maui","Tybee Island","Lake Tahoe"];
 function buildMarquee(){const t=document.getElementById('marquee');const d=[...cities,...cities,...cities];t.innerHTML=d.map(c=>`<div class="city-pill">${c}</div>`).join('');}
 buildMarquee();
 

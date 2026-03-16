@@ -168,7 +168,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 32px;display:flex;
     <h1>Every city's rules<br><em>at a glance.</em></h1>
   </div>
   <div class="header-right">
-    <div class="h-stat"><div class="h-stat-val">20<span>+</span></div><div class="h-stat-label">Markets</div></div>
+    <div class="h-stat"><div class="h-stat-val">30<span>+</span></div><div class="h-stat-label">Markets</div></div>
     <div class="h-stat"><div class="h-stat-val">48<span>hr</span></div><div class="h-stat-label">Alert SLA</div></div>
   </div>
 </div>
@@ -313,6 +313,57 @@ const M=[
  stats:[{v:"$100",l:"Late penalty"},{v:"6%",l:"Occupancy tax"},{v:"12.75%",l:"Total tax"},{v:"Required",l:"Registration"}],
  rules:["Multiple jurisdictions: Dare, KDH, Nags Head, etc.","Nags Head: $25 registration, fines if unregistered","NC Vacation Rental Act: written agreement required","Generally friendly — NC preemption limits restrictions"],
  dl:null, src:"darenc.gov · nagsheadnc.gov"},
+// ── Markets #21-30 ──
+{id:"nyc",city:"New York City",state:"NY",sev:"strict",lat:40.71,lng:-74.01,
+ tag:"Local Law 18 effectively banned most STRs — $5K per transaction penalty",
+ stats:[{v:"$5,000",l:"Per transaction"},{v:"~3,000",l:"Approved registrations"},{v:"2 max",l:"Guests allowed"},{v:"Host present",l:"Required"}],
+ rules:["Must register with Mayor's Office of Special Enforcement (OSE)","Host must be permanent occupant, present during stay","Max 2 guests, cannot rent entire unit","Platforms must verify registration — 60K+ illegal listings removed"],
+ dl:null, src:"nyc.gov/specialenforcement"},
+{id:"la",city:"Los Angeles",state:"CA",sev:"strict",lat:34.05,lng:-118.24,
+ tag:"120-day cap, primary residence only, RSO units banned",
+ stats:[{v:"120",l:"Day annual cap"},{v:"$89",l:"Registration fee"},{v:"Primary",l:"Residence only"},{v:"2 strikes",l:"= revocation"}],
+ rules:["Primary residence only (6+ months/year)","120-day cap without extended approval ($850+)","RSO (rent-stabilized) units completely prohibited","24/7 complaint hotline: (213) 267-7788"],
+ dl:null, src:"planning.lacity.gov"},
+{id:"orlando",city:"Orlando",state:"FL",sev:"moderate",lat:28.54,lng:-81.38,
+ tag:"Home Sharing Registration, DBPR license, 13% combined tax",
+ stats:[{v:"$275",l:"Initial permit"},{v:"$100",l:"Annual renewal"},{v:"13%",l:"Combined tax"},{v:"DBPR",l:"State license req"}],
+ rules:["Host must live on-site and be present during stay","Only one booking at a time, max 50% of bedrooms","FL DBPR state license mandatory for all vacation rentals","Interior inspection required at annual renewal"],
+ dl:null, src:"orlando.gov"},
+{id:"lasvegas",city:"Las Vegas",state:"NV",sev:"moderate",lat:36.17,lng:-115.14,
+ tag:"Owner-occupied only, 660ft separation, Clark County 1% cap",
+ stats:[{v:"660ft",l:"Min separation"},{v:"1%",l:"CC area cap"},{v:"$500K",l:"Insurance req"},{v:"Owner",l:"Occupied only"}],
+ rules:["City of LV: owner-occupied, conditional use verification required","Clark County: 1% cap per unincorporated area, 1,000ft separation","$500K liability insurance required in City of LV","2,500ft minimum from resort hotels"],
+ dl:null, src:"lasvegasnevada.gov · clarkcountynv.gov"},
+{id:"boston",city:"Boston",state:"MA",sev:"strict",lat:42.36,lng:-71.06,
+ tag:"3-tier system, Problem Property rules, abutter notification",
+ stats:[{v:"$25–100",l:"Annual fee"},{v:"3 tiers",l:"Ltd/Home/Adjacent"},{v:"9 mo",l:"Residency req"},{v:"$100/day",l:"Violation fine"}],
+ rules:["Limited Share (host present), Home Share (whole unit), Owner-Adjacent","Must be primary residence 9+ months/year","Problem Properties and units with 3+ violations ineligible","Must notify abutters within 30 days of registration"],
+ dl:null, src:"boston.gov"},
+{id:"portland",city:"Portland",state:"OR",sev:"moderate",lat:45.52,lng:-122.68,
+ tag:"Type A/B permits, 95-night cap when host absent",
+ stats:[{v:"$190",l:"2-year permit"},{v:"95",l:"Night cap (Type B)"},{v:"11.5%",l:"Lodging tax"},{v:"Primary",l:"Residence only"}],
+ rules:["Type A: host present (accessory use), Type B: host absent","Type B limited to 95 nights/year when host is away","BDS safety inspection required for permit","ADUs cannot be used as STRs unless owner-occupied"],
+ dl:null, src:"portland.gov"},
+{id:"destin",city:"Destin/30A",state:"FL",sev:"moderate",lat:30.39,lng:-86.50,
+ tag:"Top beach STR market, multi-county jurisdiction, DBPR required",
+ stats:[{v:"DBPR",l:"State license req"},{v:"5%",l:"County TDT"},{v:"~12%",l:"Total tax"},{v:"Annual",l:"Renewal"}],
+ rules:["FL DBPR state vacation rental license mandatory","Walton County (30A) and Okaloosa County (Destin) have separate rules","Tourist Development Tax 5% due monthly","Hurricane evacuation compliance requirements"],
+ dl:null, src:"cityofdestin.com"},
+{id:"maui",city:"Maui",state:"HI",sev:"strict",lat:20.80,lng:-156.32,
+ tag:"Permit moratorium, STR phaseout in apartment districts",
+ stats:[{v:"Moratorium",l:"New permits frozen"},{v:"~18%",l:"GET+TAT+surcharge"},{v:"Phaseout",l:"In apt districts"},{v:"Highest",l:"Property tax rate"}],
+ rules:["Moratorium on new STRH permits in many areas","Bill 41 / Ord 5831: phaseout of STRs in apartment districts","Losing a permit may mean permanent loss of ability to operate","Post-wildfire housing crisis accelerated enforcement"],
+ dl:null, src:"mauicounty.gov"},
+{id:"tybee",city:"Tybee Island",state:"GA",sev:"moderate",lat:32.00,lng:-80.85,
+ tag:"~1,100 permit cap, lottery system, separate from Savannah",
+ stats:[{v:"~1,100",l:"Permit cap"},{v:"$400",l:"Application fee"},{v:"$250",l:"Annual renewal"},{v:"Lottery",l:"For new permits"}],
+ rules:["~40% of all housing is STVR — strict cap in place","Lottery system when permits become available","Must use licensed management company or self-manage with local contact","Separate jurisdiction from Savannah (different rules entirely)"],
+ dl:null, src:"cityoftybee.org"},
+{id:"laketahoe",city:"Lake Tahoe",state:"CA",sev:"strict",lat:38.94,lng:-119.98,
+ tag:"Multi-county VHR caps, lottery, $1,000/day fines",
+ stats:[{v:"Lottery",l:"For new permits"},{v:"$1,000/day",l:"Placer Co fine"},{v:"Multi",l:"Jurisdictions"},{v:"10-14%",l:"TOT varies"}],
+ rules:["El Dorado, Placer, Washoe counties + City of SLT all have different rules","South Lake Tahoe: VHR lottery for new permits","Placer County (North Shore): $1,000/day unlicensed fine","Bear box and wildlife management requirements"],
+ dl:null, src:"cityofslt.us · placer.ca.gov"},
 ];
 
 const sevLabel={strict:"Strict",moderate:"Moderate",friendly:"Friendly"};
@@ -351,15 +402,14 @@ d3.json("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json").then(us=>{
   });
 
   // Handle Hawaii manually (AlbersUSA includes it but shifted)
-  // If Honolulu didn't project, place it manually in the inset area
-  const honolulu=M.find(m=>m.id==="honolulu");
-  if(honolulu){
-    const hpt=projection([honolulu.lng,honolulu.lat]);
-    if(!hpt){
-      // Manual Hawaii inset position
-      renderDot(dots, honolulu, 305, 530, 19);
-    }
-  }
+  // If Honolulu/Maui didn't project, place them manually in the inset area
+  const hawaiiMarkets=[{id:"honolulu",x:305,y:530},{id:"maui",x:335,y:535}];
+  hawaiiMarkets.forEach(h=>{
+    const m=M.find(x=>x.id===h.id);
+    if(!m) return;
+    const pt=projection([m.lng,m.lat]);
+    if(!pt) renderDot(dots, m, h.x, h.y, M.indexOf(m));
+  });
 }).catch(err=>{
   console.error("Map load error:",err);
   // Fallback: just show the city grid
