@@ -7,6 +7,7 @@ Watches state tax authority and licensing pages that cover MULTIPLE markets each
 - TN DOR (Nashville, Gatlinburg)
 - AZ DOR (Scottsdale, Sedona)
 - GA DOR (Savannah, Tybee Island)
+- IN DOR + IGA (Indianapolis)
 - CA — no single state page; TOT is city/county administered (handled separately)
 
 One scraper, ~15 URLs, covers state-level regulatory changes for 20+ markets.
@@ -119,13 +120,38 @@ GA_DOR_PAGES = [
     },
 ]
 
+# ── Indiana DOR + IGA ─────────────────────────────────────────────────────────
+# Covers: Indianapolis
+# County Innkeeper's Tax (CIT) — Marion County rate is 10%, administered by IN DOR
+# Indiana General Assembly — watch for amendments to HB 1035 STR preemption law
+IN_DOR_PAGES = [
+    {
+        "name": "IN DOR — County Innkeeper's Tax (CIT)",
+        "url": "https://www.in.gov/dor/resources/tax-rates-and-reports/rates-fees-and-penalties/county-innkeepers-tax/",
+        "city": "Indiana (statewide)",
+        "priority": "high",
+    },
+    {
+        "name": "IN IGA — 2026 Session Bills",
+        "url": "https://iga.in.gov/legislative/2026/bills",
+        "city": "Indiana (statewide)",
+        "priority": "high",
+    },
+    {
+        "name": "IN IGA — SB 411 Short-Term Rental Properties (2025)",
+        "url": "https://iga.in.gov/legislative/2025/bills/senate/411",
+        "city": "Indiana (statewide)",
+        "priority": "medium",
+    },
+]
+
 # ── All pages combined ────────────────────────────────────────────────────────
-ALL_STATE_PAGES = FL_DBPR_PAGES + HI_DOTAX_PAGES + TN_DOR_PAGES + AZ_DOR_PAGES + GA_DOR_PAGES
+ALL_STATE_PAGES = FL_DBPR_PAGES + HI_DOTAX_PAGES + TN_DOR_PAGES + AZ_DOR_PAGES + GA_DOR_PAGES + IN_DOR_PAGES
 
 
 def run():
     """Watch all state-level STR regulatory pages."""
-    log.info("=== State-level page watcher starting (%d pages across 5 states) ===", len(ALL_STATE_PAGES))
+    log.info("=== State-level page watcher starting (%d pages across 6 states) ===", len(ALL_STATE_PAGES))
 
     changes = 0
     errors = 0
