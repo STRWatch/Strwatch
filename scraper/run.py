@@ -10,6 +10,7 @@ Flags:
   --nashville-only  Only run Nashville Legistar scraper
   --austin-only     Only run Austin scraper
   --nola-only       Only run New Orleans scrapers
+  --indianapolis-only  Only run Indianapolis scrapers
   --pages-only      Only run generic page watcher
   --dump-fields     Print Denver SODA API field names (for FIELD_MAP setup)
   --dry-run         Run scrapers but skip sending alerts
@@ -348,6 +349,22 @@ def run_all(args: List[str]) -> dict:
         except Exception as e:
             log.error("State pages scraper failed: %s", e, exc_info=True)
             results["state_pages"] = {"error": str(e)}
+
+        banner("Indianapolis IN Page Watcher")
+        try:
+            from scrapers import indianapolis_web
+            results["indianapolis"] = indianapolis_web.run()
+        except Exception as e:
+            log.error("Indianapolis page watcher failed: %s", e, exc_info=True)
+            results["indianapolis"] = {"error": str(e)}
+
+        banner("Indianapolis IN Legistar")
+        try:
+            from scrapers import indianapolis_legistar
+            results["indianapolis_legistar"] = indianapolis_legistar.run(days_back=14)
+        except Exception as e:
+            log.error("Indianapolis Legistar failed: %s", e, exc_info=True)
+            results["indianapolis_legistar"] = {"error": str(e)}
 
     # ── County-Level Pages (Davidson, Travis, El Dorado, Multnomah, Monroe, SB, Okaloosa, Chatham) ──
     banner("County-Level Pages (8 counties)")

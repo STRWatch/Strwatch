@@ -51,6 +51,9 @@ NOLA_SODA_LIMIT = 1000
 # ── San Diego ─────────────────────────────────────────────────────────────────
 SANDIEGO_STRO_CSV = "https://seshat.datasd.org/stro/stro_licenses_datasd.csv"
 
+# ── Indianapolis ──────────────────────────────────────────────────────────────
+INDIANAPOLIS_LEGISTAR_BASE = "https://webapi.legistar.com/v1/indianapolis"
+
 # ── STR keywords to watch for in legislation text ────────────────────────────
 STR_KEYWORDS = [
     "short-term rental", "short term rental", "STR", "STRP",
@@ -113,6 +116,30 @@ WATCHED_PAGES = [
         "name": "San Diego — STRO Regulations",
         "url": "https://www.sandiego.gov/treasurer/short-term-residential-occupancy",
         "city": "San Diego, CA",
+        "priority": "high",
+    },
+    {
+        "name": "Indianapolis — STR Registration",
+        "url": "https://www.indy.gov/activity/short-term-rental-registration",
+        "city": "Indianapolis",
+        "priority": "high",
+    },
+    {
+        "name": "Indianapolis — DBNS Permits & Licensing",
+        "url": "https://www.indy.gov/agency/department-of-business-and-neighborhood-services",
+        "city": "Indianapolis",
+        "priority": "medium",
+    },
+    {
+        "name": "Indianapolis — Marion County Innkeeper's Tax",
+        "url": "https://www.indy.gov/activity/innkeepers-tax",
+        "city": "Indianapolis",
+        "priority": "medium",
+    },
+    {
+        "name": "Indianapolis — City-County Council Agendas",
+        "url": "https://council.indy.gov/meeting-documents",
+        "city": "Indianapolis",
         "priority": "high",
     },
 ]
