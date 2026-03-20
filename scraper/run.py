@@ -74,7 +74,7 @@ def run_all(args: List[str]) -> dict:
         return results
 
     # ── Denver SODA ──
-    if "--nashville-only" not in args and "--austin-only" not in args and "--pages-only" not in args:
+    if "--nashville-only" not in args and "--austin-only" not in args and "--pages-only" not in args and "--indianapolis-only" not in args:
         banner("Denver SODA API")
         try:
             from scrapers import denver_soda
@@ -87,7 +87,7 @@ def run_all(args: List[str]) -> dict:
             results["denver"] = {"error": str(e)}
 
     # ── Nashville Legistar ──
-    if "--denver-only" not in args and "--austin-only" not in args and "--pages-only" not in args:
+    if "--denver-only" not in args and "--austin-only" not in args and "--pages-only" not in args and "--indianapolis-only" not in args:
         banner("Nashville Legistar")
         try:
             from scrapers import nashville_legistar
@@ -96,8 +96,8 @@ def run_all(args: List[str]) -> dict:
             log.error("Nashville scraper failed: %s", e, exc_info=True)
             results["nashville"] = {"error": str(e)}
 
-    # ── Austin ──
-    if "--denver-only" not in args and "--nashville-only" not in args and "--pages-only" not in args:
+    # ── Austin + all other city scrapers ──
+    if "--denver-only" not in args and "--nashville-only" not in args and "--pages-only" not in args and "--indianapolis-only" not in args:
         banner("Austin Web Scraper")
         try:
             from scrapers import austin_web
@@ -350,6 +350,13 @@ def run_all(args: List[str]) -> dict:
             log.error("State pages scraper failed: %s", e, exc_info=True)
             results["state_pages"] = {"error": str(e)}
 
+    # ── Indianapolis ──
+    if "--indianapolis-only" in args or (
+        "--denver-only" not in args
+        and "--nashville-only" not in args
+        and "--austin-only" not in args
+        and "--pages-only" not in args
+    ):
         banner("Indianapolis IN Page Watcher")
         try:
             from scrapers import indianapolis_web
