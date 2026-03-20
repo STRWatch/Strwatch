@@ -1,61 +1,71 @@
 """
-scrapers/indianapolis_web.py — Indianapolis STR page monitoring.
+scrapers/indianapolis_web.py — Indianapolis STR page monitoring + council proposal scanning.
 
-Indianapolis STR permit program launched January 1, 2025.
-Administered by Department of Business & Neighborhood Services (DBNS).
-Key facts:
+Indianapolis does NOT use the Legistar public API (slug exists but is unconfigured).
+Instead we:
+  1. Hash-watch indy.gov STR pages and DBNS permit pages
+  2. Hash-watch the Municode Meetings portal (indianapolis-in.municodemeetings.com)
+  3. Hash-watch the City-County Council Proposals page on indy.gov
+  4. Hash-watch the Department of Metropolitan Development (DMD) meetings page
+
+Key context:
+  - STR permit program launched January 1, 2025 under DBNS
   - $150 permit fee, annual renewal (free), non-transferable
-  - 17% total tax: 7% state sales tax + 10% Marion County innkeeper's tax
-  - 3 violations in 12 months = permit revocation up to 1 year
-  - State law (HB 1035) prevents outright bans but allows regulation
-  - City actively soliciting neighbor reports on unregistered STRs
-
-Pages watched:
-  1. indy.gov STR main page
-  2. DBNS licensing/permit page
-  3. Marion County innkeeper's tax page
-  4. Indianapolis City-County Council agenda index
+  - Marion County 10% innkeeper's tax + 7% Indiana state sales tax = 17% total
+  - 3 violations in 12 months → permit revocation up to 1 year
+  - Indiana HB 1035 prevents outright STR bans, allows regulation
+  - Proposals page and DMD are highest-value sources for zoning/STR changes
 """
 
 import logging
-from datetime import date
-
-import config
-from scrapers.austin_web import watch_page  # Reuse shared hash-diff watcher
+from scrapers.austin_web import watch_page
 
 log = logging.getLogger(__name__)
 
-# Indianapolis-specific pages to monitor
 INDIANAPOLIS_PAGES = [
+    # ── Core STR pages ──
     {
-        "name": "Indianapolis STR Main Page",
+        "name": "Indianapolis — STR Registration",
         "url": "https://www.indy.gov/activity/short-term-rental-registration",
         "city": "Indianapolis",
         "priority": "high",
     },
     {
-        "name": "Indianapolis DBNS Permits & Licensing",
+        "name": "Indianapolis — DBNS Permits & Licensing",
         "url": "https://www.indy.gov/agency/department-of-business-and-neighborhood-services",
         "city": "Indianapolis",
         "priority": "medium",
     },
     {
-        "name": "Marion County Innkeeper's Tax",
+        "name": "Indianapolis — Marion County Innkeeper's Tax",
         "url": "https://www.indy.gov/activity/innkeepers-tax",
         "city": "Indianapolis",
         "priority": "medium",
     },
+    # ── Legislation & proposals ──
     {
-        "name": "Indianapolis City-County Council Agendas",
-        "url": "https://council.indy.gov/meeting-documents",
+        "name": "Indianapolis — City-County Council Proposals",
+        "url": "https://www.indy.gov/activity/city-county-council-proposals",
         "city": "Indianapolis",
         "priority": "high",
     },
     {
-        "name": "Indianapolis STR Accela Portal",
-        "url": "https://mylicense.indy.gov/EpisealV2/default.aspx",
+        "name": "Indianapolis — Council Meeting Agendas",
+        "url": "https://www.indy.gov/activity/council-meeting-agendas",
         "city": "Indianapolis",
-        "priority": "low",
+        "priority": "high",
+    },
+    {
+        "name": "Indianapolis — Municode Meetings Portal",
+        "url": "https://indianapolis-in.municodemeetings.com/",
+        "city": "Indianapolis",
+        "priority": "medium",
+    },
+    {
+        "name": "Indianapolis — DMD Meetings (zoning/planning)",
+        "url": "https://indianapolis-in.municodemeetings.com/DMDmeetings",
+        "city": "Indianapolis",
+        "priority": "high",
     },
 ]
 

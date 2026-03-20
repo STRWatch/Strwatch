@@ -358,14 +358,6 @@ def run_all(args: List[str]) -> dict:
             log.error("Indianapolis page watcher failed: %s", e, exc_info=True)
             results["indianapolis"] = {"error": str(e)}
 
-        banner("Indianapolis IN Legistar")
-        try:
-            from scrapers import indianapolis_legistar
-            results["indianapolis_legistar"] = indianapolis_legistar.run(days_back=14)
-        except Exception as e:
-            log.error("Indianapolis Legistar failed: %s", e, exc_info=True)
-            results["indianapolis_legistar"] = {"error": str(e)}
-
     # ── County-Level Pages (Davidson, Travis, El Dorado, Multnomah, Monroe, SB, Okaloosa, Chatham) ──
     banner("County-Level Pages (8 counties)")
     try:

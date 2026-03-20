@@ -52,7 +52,9 @@ NOLA_SODA_LIMIT = 1000
 SANDIEGO_STRO_CSV = "https://seshat.datasd.org/stro/stro_licenses_datasd.csv"
 
 # ── Indianapolis ──────────────────────────────────────────────────────────────
-INDIANAPOLIS_LEGISTAR_BASE = "https://webapi.legistar.com/v1/indianapolis"
+# NOTE: Indianapolis has Legistar software but the public API is not enabled.
+# Monitoring is done via page watching (indy.gov + Municode Meetings portal).
+# See scrapers/indianapolis_web.py
 
 # ── STR keywords to watch for in legislation text ────────────────────────────
 STR_KEYWORDS = [
@@ -137,8 +139,26 @@ WATCHED_PAGES = [
         "priority": "medium",
     },
     {
-        "name": "Indianapolis — City-County Council Agendas",
-        "url": "https://council.indy.gov/meeting-documents",
+        "name": "Indianapolis — City-County Council Proposals",
+        "url": "https://www.indy.gov/activity/city-county-council-proposals",
+        "city": "Indianapolis",
+        "priority": "high",
+    },
+    {
+        "name": "Indianapolis — Council Meeting Agendas",
+        "url": "https://www.indy.gov/activity/council-meeting-agendas",
+        "city": "Indianapolis",
+        "priority": "high",
+    },
+    {
+        "name": "Indianapolis — Municode Meetings Portal",
+        "url": "https://indianapolis-in.municodemeetings.com/",
+        "city": "Indianapolis",
+        "priority": "medium",
+    },
+    {
+        "name": "Indianapolis — DMD Meetings (zoning/planning)",
+        "url": "https://indianapolis-in.municodemeetings.com/DMDmeetings",
         "city": "Indianapolis",
         "priority": "high",
     },
