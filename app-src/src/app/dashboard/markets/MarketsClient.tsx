@@ -35,6 +35,7 @@ const MARKETS = [
   { city: 'Lake Tahoe, CA',      zips: ['961','960','894','895'], aliases: ['lake tahoe','tahoe','south lake tahoe'], desc: 'El Dorado VHR · Placer County · Multi-jurisdiction' },
   { city: 'Tybee Island, GA',    zips: ['313'], aliases: ['tybee','tybee island'], desc: 'STVR certificate · Chatham County · GA hotel/motel fee' },
   { city: 'Destin, FL',          zips: ['325'], aliases: ['destin','30a','miramar beach','santa rosa beach'], desc: '6% TDT · Okaloosa County · FL DBPR license' },
+  { city: 'Indianapolis, IN',   zips: ['462','460','461','463','464','465','466'], aliases: ['indianapolis','indy','marion county'], desc: '$150 permit · DBNS licensing · Marion County 10% CIT' },
 ]
 
 function resolveMarkets(input: string): typeof MARKETS {
@@ -314,7 +315,7 @@ export default function MarketsClient({
       <div style={{marginTop:'2rem',padding:'14px 18px',background:'white',border:'1px solid var(--border)',borderRadius:'10px',display:'flex',alignItems:'center',gap:'10px'}}>
         <div style={{width:'8px',height:'8px',background:'var(--green-bright)',borderRadius:'50%',animation:'pulse 2s ease-in-out infinite'}} />
         <span style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',letterSpacing:'0.08em',color:'var(--text-muted)'}}>
-          Monitoring <strong style={{color:'var(--green)'}}>30 US markets</strong> with active scraping · Nashville, Austin, Denver, NYC, LA, SF, and 24 more
+          Monitoring <strong style={{color:'var(--green)'}}>31 US markets</strong> with active scraping · Nashville, Austin, Denver, NYC, LA, SF, and 25 more
         </span>
       </div>
     </div>
