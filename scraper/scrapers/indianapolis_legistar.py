@@ -50,8 +50,8 @@ def _matches_keywords(text: str) -> List[str]:
     if not text:
         return []
     try:
-        from scrapers.keywords import match_keywords
-        return match_keywords(text, KEYWORDS)
+        from scrapers.keywords import matches_keywords
+        return matches_keywords(text, KEYWORDS)
     except ImportError:
         # Fallback: simple whole-word regex
         import re
