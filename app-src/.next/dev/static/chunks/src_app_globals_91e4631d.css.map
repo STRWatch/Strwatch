@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["file:///Users/sidereas/projects/strwatch-app/app-src/src/app/globals.css"],"sourcesContent":["/*! tailwindcss v4.2.1 | MIT License | https://tailwindcss.com */\n.visible {\n  visibility: visible;\n}\n.fixed {\n  position: fixed;\n}\n.block {\n  display: block;\n}\n.flex {\n  display: flex;\n}\n.grid {\n  display: grid;\n}\n.hidden {\n  display: none;\n}\n.inline-block {\n  display: inline-block;\n}\n.min-h-screen {\n  min-height: 100vh;\n}\n.flex-col {\n  flex-direction: column;\n}\n.items-center {\n  align-items: center;\n}\n.justify-center {\n  justify-content: center;\n}\n.bg-\\[var\\(--off-white\\)\\] {\n  background-color: var(--off-white);\n}\n.uppercase {\n  text-transform: uppercase;\n}\n.underline {\n  text-decoration-line: underline;\n}\n:root {\n  --green-deep: #1a4d2e;\n  --green: #2d7a4f;\n  --green-bright: #4db87a;\n  --green-pale: #e8f5ee;\n  --green-light: #c8ecd8;\n  --ink: #0f1a0a;\n  --border: #d8e8cf;\n  --off-white: #f7f9f5;\n}\n"],"names":[],"mappings":"AACA;;;;AAGA;;;;AAGA;;;;AAGA;;;;AAGA;;;;AAGA;;;;AAGA;;;;AAGA;;;;AAGA;;;;AAGA;;;;AAGA;;;;AAGA;;;;AAGA;;;;AAGA;;;;AAGA"}}]
-}
