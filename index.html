@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>STRWatch — Short-Term Rental Regulation Intelligence</title>
+<title>STRWatch — STR Regulation Alerts for 31 High-Enforcement Markets</title>
+<meta name="description" content="STRWatch monitors 130+ government sources across 31 high-regulation STR markets. 48-hour alerts on permit deadlines, ordinance changes, and enforcement actions. Start your free 45-day Pro trial.">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Epilogue:ital,wght@0,300;0,400;0,500;1,300;1,400&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -213,6 +214,16 @@ footer{background:var(--ink);padding:40px 60px;display:flex;align-items:center;j
 .footer-logo span{color:rgba(77,184,122,0.7);}
 .footer-copy{font-family:'JetBrains Mono',monospace;font-size:0.58rem;letter-spacing:0.06em;color:rgba(255,255,255,0.2);}
 
+/* MARKETS GRID */
+.markets-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:2.5rem;}
+.market-card{background:var(--white);border:1px solid var(--border);border-radius:8px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;transition:all 0.2s;}
+.market-card:hover{border-color:var(--green);transform:translateY(-2px);box-shadow:0 4px 12px rgba(15,26,10,0.06);}
+.market-city{font-family:'Syne',sans-serif;font-weight:600;font-size:0.88rem;color:var(--ink);}
+.market-state{font-family:'JetBrains Mono',monospace;font-size:0.6rem;letter-spacing:0.1em;color:var(--text-faint);}
+.market-dot{width:6px;height:6px;background:var(--green-bright);border-radius:50%;flex-shrink:0;}
+.markets-footer{margin-top:2rem;font-family:'Epilogue',sans-serif;font-size:0.88rem;color:var(--text-muted);}
+.markets-footer a{color:var(--green);font-weight:600;text-decoration:underline;text-underline-offset:3px;}
+
 /* SCROLL ANIMATION */
 .fade-up{opacity:0;transform:translateY(20px);transition:opacity 0.55s ease,transform 0.55s ease;}
 .fade-up.visible{opacity:1;transform:translateY(0);}
@@ -244,6 +255,7 @@ footer{background:var(--ink);padding:40px 60px;display:flex;align-items:center;j
   .step{padding:1.75rem 1.5rem;}
   .features-grid{grid-template-columns:1fr 1fr;}
   .feature{padding:1.5rem 1.25rem;}
+  .markets-grid{grid-template-columns:repeat(2,1fr);}
   .beta-ticker-row{gap:10px;}
   .beta-label{font-size:0.55rem;}
   .testimonials{grid-template-columns:1fr;}
@@ -255,6 +267,7 @@ footer{background:var(--ink);padding:40px 60px;display:flex;align-items:center;j
 }
 @media(max-width:480px){
   .features-grid{grid-template-columns:1fr;}
+  .markets-grid{grid-template-columns:1fr;}
   .problem-stats{grid-template-columns:1fr;}
   h1{font-size:2rem;}
   .hero{padding:80px 20px 48px;}
@@ -274,12 +287,12 @@ footer{background:var(--ink);padding:40px 60px;display:flex;align-items:center;j
     <a class="nav-link" href="#pricing">Pricing</a>
     <a class="nav-link" href="/map">Map</a>
     <a class="nav-link" href="/blog">Blog</a>
-    <a class="nav-cta" href="https://app.strwatch.io/sign-up">Start free trial</a>
+    <a class="nav-cta trial-cta-link" href="https://app.strwatch.io/sign-in">Start free trial</a>
   </div>
 </nav>
 
 <!-- HERO -->
-<section class="hero" id="waitlist">
+<section class="hero" id="hero">
   <div class="hero-grid"></div>
   <div class="hero-glow"></div>
   <div class="hero-glow2"></div>
@@ -287,34 +300,29 @@ footer{background:var(--ink);padding:40px 60px;display:flex;align-items:center;j
     <div class="hero-content">
       <div class="hero-badge">
         <div class="hero-badge-dot"></div>
-        Monitoring 30 US markets
+        Live in 31 high-regulation markets
       </div>
       <h1>Never miss a<br><em>regulation change</em><br>that <span class="accent">costs you.</span></h1>
-      <p class="hero-sub">STRWatch watches city hall so you don't have to. 48-hour alerts on permit deadlines, ordinance changes, and enforcement actions — personalized to your properties.</p>
+      <p class="hero-sub">STRWatch watches city hall so you don't have to. 48-hour alerts on permit deadlines, ordinance changes, and enforcement actions across 31 markets with 130+ government sources monitored 24/7.</p>
 
-      <div style="margin-bottom:1.2rem;padding:12px 16px;background:var(--green-pale);border:1.5px solid var(--green-light);border-radius:8px;display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap;">
-  <span style="font-family:'JetBrains Mono',monospace;font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--green);">In one of these markets?</span>
-  <a href="https://app.strwatch.io/sign-up" style="font-family:'Syne',sans-serif;font-weight:700;font-size:0.78rem;color:var(--green-deep);text-decoration:underline;text-underline-offset:3px;">Try Pro free for 45 days →</a>
-</div>
-<form class="form-row" onsubmit="handleSubmit(event)" id="form-hero">
-        <input class="waitlist-input" type="email" id="email-hero" placeholder="your@email.com" required>
-        <button class="waitlist-btn" type="submit">Join waitlist</button>
-      </form>
-      <div class="waitlist-success" id="success-hero"></div>
-      <p class="hero-note"><strong>45-day free Pro trial</strong> · No credit card required · Then $29/mo</p>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:12px;">
+        <a class="waitlist-btn" href="https://app.strwatch.io/sign-in" style="display:inline-block;text-decoration:none;padding:14px 28px;font-size:0.85rem;">Start your free trial →</a>
+        <a href="#markets" style="font-family:'Syne',sans-serif;font-weight:600;font-size:0.82rem;color:var(--green);text-decoration:underline;text-underline-offset:3px;">See the 31 markets</a>
+      </div>
+      <p class="hero-note">No credit card · <strong>45-day Pro trial</strong> · 1 market free forever</p>
 
       <div class="hero-stats">
         <div class="hero-stat">
-          <div class="stat-val">600<span class="g">+</span></div>
-          <div class="stat-label">Cities tracked</div>
+          <div class="stat-val">31</div>
+          <div class="stat-label">Markets monitored</div>
+        </div>
+        <div class="hero-stat">
+          <div class="stat-val">130<span class="g">+</span></div>
+          <div class="stat-label">Sources monitored</div>
         </div>
         <div class="hero-stat">
           <div class="stat-val">48<span class="g">hr</span></div>
           <div class="stat-label">Alert SLA</div>
-        </div>
-        <div class="hero-stat">
-          <div class="stat-val">$<span class="g">0</span></div>
-          <div class="stat-label">To get started</div>
         </div>
       </div>
     </div>
@@ -384,6 +392,49 @@ footer{background:var(--ink);padding:40px 60px;display:flex;align-items:center;j
   <div class="marquee-track" id="marquee"></div>
 </div>
 
+<!-- MARKETS COVERAGE -->
+<section class="section" id="markets">
+  <div class="fade-up">
+    <div class="section-eyebrow">Coverage</div>
+    <h2>31 markets. Monitored deeply,<br>not shallowly.</h2>
+    <p class="section-lead">We don't claim to cover every city in America. We cover the ones where STR enforcement actually happens — at the city, county, and state level.</p>
+  </div>
+  <div class="markets-grid fade-up">
+    <div class="market-card"><div><span class="market-city">Nashville</span> <span class="market-state">TN</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Austin</span> <span class="market-state">TX</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Denver</span> <span class="market-state">CO</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Scottsdale</span> <span class="market-state">AZ</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Palm Springs</span> <span class="market-state">CA</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">New Orleans</span> <span class="market-state">LA</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">San Diego</span> <span class="market-state">CA</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Charleston</span> <span class="market-state">SC</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Savannah</span> <span class="market-state">GA</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">San Francisco</span> <span class="market-state">CA</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Miami Beach</span> <span class="market-state">FL</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Gatlinburg</span> <span class="market-state">TN</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Asheville</span> <span class="market-state">NC</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Key West</span> <span class="market-state">FL</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Sedona</span> <span class="market-state">AZ</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Park City</span> <span class="market-state">UT</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Breckenridge</span> <span class="market-state">CO</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Big Bear</span> <span class="market-state">CA</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Honolulu</span> <span class="market-state">HI</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Outer Banks</span> <span class="market-state">NC</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">NYC</span> <span class="market-state">NY</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Los Angeles</span> <span class="market-state">CA</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Portland</span> <span class="market-state">OR</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Orlando</span> <span class="market-state">FL</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Las Vegas</span> <span class="market-state">NV</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Boston</span> <span class="market-state">MA</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Maui</span> <span class="market-state">HI</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Lake Tahoe</span> <span class="market-state">CA</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Tybee Island</span> <span class="market-state">GA</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Destin</span> <span class="market-state">FL</span></div><div class="market-dot"></div></div>
+    <div class="market-card"><div><span class="market-city">Indianapolis</span> <span class="market-state">IN</span></div><div class="market-dot"></div></div>
+  </div>
+  <p class="markets-footer fade-up">Your market not here? <a href="mailto:hello@strwatch.io?subject=Market%20request">Request your market →</a></p>
+</section>
+
 <!-- PROBLEM -->
 <section class="section">
   <div class="two-col">
@@ -434,7 +485,7 @@ footer{background:var(--ink);padding:40px 60px;display:flex;align-items:center;j
       <div class="step fade-up">
         <div class="step-num">— 02</div>
         <div class="step-title">We watch city hall</div>
-        <p class="step-body">Our system monitors city government sites, council agendas, and planning commission minutes across 30 markets around the clock. When something changes, we know within 48 hours.</p>
+        <p class="step-body">Our system monitors 130+ government sites across 31 markets around the clock — city councils, planning commissions, and county boards. When something changes, we know within 48 hours.</p>
       </div>
       <div class="step fade-up">
         <div class="step-num">— 03</div>
@@ -555,8 +606,8 @@ footer{background:var(--ink);padding:40px 60px;display:flex;align-items:center;j
       </div>
       <div class="feature fade-up">
         <div class="feature-num">03</div>
-        <div class="feature-title">30-market regulation map</div>
-        <p class="feature-body">Interactive map of STR laws across 30 US markets. See permits, fines, taxes, and deadlines at a glance. <a href="/map" style="color:var(--green);font-weight:600;">Explore the map →</a></p>
+        <div class="feature-title">31 deeply-monitored markets</div>
+        <p class="feature-body">Not a shallow database of 600 cities. Thirty-one markets where STR enforcement actually happens — monitored at the city, county, and state level, plus legislation tracking in 6 priority markets. <a href="/map" style="color:var(--green);font-weight:600;">Explore the map →</a></p>
       </div>
       <div class="feature fade-up">
         <div class="feature-num">04</div>
@@ -628,7 +679,7 @@ footer{background:var(--ink);padding:40px 60px;display:flex;align-items:center;j
             <li><span class="feat-check">✓</span> Basic regulation database</li>
             <li><span class="feat-check">✓</span> Email alerts (weekly)</li>
           </ul>
-          <a class="pricing-cta" href="https://app.strwatch.io/sign-up">Get started free</a>
+          <a class="pricing-cta" href="https://app.strwatch.io/sign-in">Start free trial</a>
         </div>
       </div>
       <div class="pricing-card featured">
@@ -648,7 +699,7 @@ footer{background:var(--ink);padding:40px 60px;display:flex;align-items:center;j
             <li><span class="feat-check">✓</span> Pre-investment market scans</li>
             <li><span class="feat-check">✓</span> Priority support</li>
           </ul>
-          <a class="pricing-cta primary" href="https://app.strwatch.io/sign-up">Start free trial</a>
+          <a class="pricing-cta primary" href="https://app.strwatch.io/sign-in">Start Pro trial</a>
         </div>
       </div>
       <div class="pricing-card">
@@ -675,12 +726,10 @@ footer{background:var(--ink);padding:40px 60px;display:flex;align-items:center;j
 <!-- BOTTOM CTA -->
 <div class="bottom-cta">
   <h2>Stop Googling.<br><em>Start knowing.</em></h2>
-  <p>Try Pro free for 45 days. No credit card required. $29/mo after that — cancel anytime.</p>
-  <form class="bottom-form" onsubmit="handleSubmitBottom(event)">
-    <input class="waitlist-input" type="email" id="email-bottom" placeholder="your@email.com" required>
-    <button class="waitlist-btn" type="submit">Join waitlist</button>
-  </form>
-  <div class="waitlist-success" id="success-bottom" style="margin:1rem auto;max-width:440px;background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.2);color:white;text-align:left;"></div>
+  <p>Start your 45-day Pro trial. No credit card. Cancel anytime. Founding member pricing locked in for trial users.</p>
+  <div style="position:relative;">
+    <a href="https://app.strwatch.io/sign-in" class="trial-cta-link" style="display:inline-block;font-family:'Syne',sans-serif;font-weight:700;font-size:0.95rem;padding:16px 36px;background:var(--mint);color:var(--green-deep);border-radius:8px;text-decoration:none;transition:background 0.2s;">Start free trial →</a>
+  </div>
   <p style="position:relative;margin-top:1.5rem;font-family:'JetBrains Mono',monospace;font-size:0.62rem;letter-spacing:0.06em;color:rgba(255,255,255,0.35);">Already signed up? <a href="/onboarding" style="color:rgba(168,230,195,0.8);text-decoration:underline;">View the getting started guide →</a></p>
 </div>
 
@@ -702,10 +751,10 @@ const SUPABASE_URL = 'https://vnybfdzcwwsluwyznayq.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_CabidZCpx37VmIWeJT-_4w_wJ9METXY';
 
 // Active markets (actually monitored)
-const activeMarkets=["Nashville, TN","Austin, TX","Denver, CO","Scottsdale, AZ","Palm Springs, CA","New Orleans, LA","Charleston, SC","Savannah, GA","San Francisco, CA","Miami Beach, FL","San Diego, CA","Park City, UT","Sedona, AZ","Asheville, NC","Key West, FL","Gatlinburg, TN","Breckenridge, CO","Big Bear, CA","Honolulu, HI","Outer Banks, NC","New York City, NY","Los Angeles, CA","Orlando, FL","Las Vegas, NV","Boston, MA","Portland, OR","Destin/30A, FL","Maui, HI","Tybee Island, GA","Lake Tahoe, CA"];
+const activeMarkets=["Nashville, TN","Austin, TX","Denver, CO","Scottsdale, AZ","Palm Springs, CA","New Orleans, LA","Charleston, SC","Savannah, GA","San Francisco, CA","Miami Beach, FL","San Diego, CA","Park City, UT","Sedona, AZ","Asheville, NC","Key West, FL","Gatlinburg, TN","Breckenridge, CO","Big Bear, CA","Honolulu, HI","Outer Banks, NC","New York City, NY","Los Angeles, CA","Orlando, FL","Las Vegas, NV","Boston, MA","Portland, OR","Destin/30A, FL","Maui, HI","Tybee Island, GA","Lake Tahoe, CA","Indianapolis, IN"];
 
-// Big marquee: all 30 real markets
-const cities=["Nashville","Austin","Denver","Scottsdale","Palm Springs","New Orleans","Charleston","Savannah","San Francisco","Miami Beach","San Diego","Park City","Sedona","Asheville","Key West","Gatlinburg","Breckenridge","Big Bear","Honolulu","Outer Banks","New York City","Los Angeles","Orlando","Las Vegas","Boston","Portland","Destin · 30A","Maui","Tybee Island","Lake Tahoe"];
+// Big marquee: all 31 real markets
+const cities=["Nashville","Austin","Denver","Scottsdale","Palm Springs","New Orleans","Charleston","Savannah","San Francisco","Miami Beach","San Diego","Park City","Sedona","Asheville","Key West","Gatlinburg","Breckenridge","Big Bear","Honolulu","Outer Banks","New York City","Los Angeles","Orlando","Las Vegas","Boston","Portland","Destin · 30A","Maui","Tybee Island","Lake Tahoe","Indianapolis"];
 function buildMarquee(){const t=document.getElementById('marquee');const d=[...cities,...cities,...cities];t.innerHTML=d.map(c=>`<div class="city-pill">${c}</div>`).join('');}
 buildMarquee();
 
@@ -713,49 +762,13 @@ buildMarquee();
 function buildBetaTicker(){const t=document.getElementById('beta-ticker');if(!t)return;const d=[...activeMarkets,...activeMarkets,...activeMarkets];t.innerHTML=d.map(c=>`<div class="beta-city">${c}</div>`).join('');}
 buildBetaTicker();
 
-async function trackSignup(email) {
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/waitlist`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_KEY,
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify({ email, source: 'landing' })
-    });
-    if (!res.ok && res.status !== 409) {
-      console.error('Signup error:', res.status);
-    }
-  } catch(err) {
-    console.error('Signup failed:', err);
-  }
-}
+// Track trial CTA clicks
+document.querySelectorAll('.trial-cta-link, .pricing-cta').forEach(link=>{
+  link.addEventListener('click',()=>{
+    if(typeof gtag==='function') gtag('event','trial_cta_click',{event_category:'conversion',event_label:link.textContent.trim()});
+  });
+});
 
-async function handleSubmit(e){
-  e.preventDefault();
-  const email=document.getElementById('email-hero').value;
-  if(!email)return;
-  document.getElementById('form-hero').style.display='none';
-  const s=document.getElementById('success-hero');
-  s.style.display='block';
-  s.textContent=`✓ You're on the list. We'll reach out with founding member access before launch.`;
-  await trackSignup(email);
-}
-
-async function handleSubmitBottom(e){
-  e.preventDefault();
-  const email=document.getElementById('email-bottom').value;
-  if(!email)return;
-  e.target.style.display='none';
-  const s=document.getElementById('success-bottom');
-  s.style.display='block';
-  s.textContent=`✓ You're on the list. Founding member pricing locked.`;
-  await trackSignup(email);
-}
-
-function scrollToWaitlist(){document.getElementById('waitlist').scrollIntoView({behavior:'smooth'});}
 const obs=new IntersectionObserver((entries)=>{entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible');});},{threshold:0.12});
 document.querySelectorAll('.fade-up').forEach(el=>obs.observe(el));
 </script>
