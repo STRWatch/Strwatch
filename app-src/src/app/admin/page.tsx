@@ -1,5 +1,6 @@
 import { requireAdmin } from '@/lib/admin'
 import { createClient } from '@/lib/supabase/server'
+import { clerkClient } from '@clerk/nextjs/server'
 
 export const dynamic = 'force-dynamic'
 
@@ -51,6 +52,21 @@ export default async function AdminPage() {
   const scans = (scanRes.data || []) as ScanRow[]
   const recentTiers = (recentTierRes.data || []) as TierRow[]
   const recentWaitlist = (recentWaitlistRes.data || []) as WaitlistRow[]
+
+  // ── Resolve emails from Clerk ───────────────────────────
+  const emailMap: Record<string, string> = {}
+  const userIdsToResolve = recentTiers.map(t => t.user_id).filter(Boolean)
+  if (userIdsToResolve.length > 0) {
+    try {
+      const clerk = await clerkClient()
+      const res = await clerk.users.getUserList({ userId: userIdsToResolve, limit: 10 })
+      for (const u of res.data) {
+        emailMap[u.id] = u.emailAddresses?.[0]?.emailAddress || ''
+      }
+    } catch (e: any) {
+      errors.push(`Clerk user lookup: ${e.message}`)
+    }
+  }
 
   // ── Tier classification ────────────────────────────────
   const classified = tiers.map(t => ({ ...t, classification: classifyTier(t) }))
@@ -275,6 +291,7 @@ export default async function AdminPage() {
             <thead>
               <tr>
                 <th style={th}>User ID</th>
+                <th style={th}>Email</th>
                 <th style={th}>Tier</th>
                 <th style={th}>Trial ends</th>
                 <th style={th}>Created</th>
@@ -282,10 +299,11 @@ export default async function AdminPage() {
             </thead>
             <tbody>
               {recentTiers.length === 0 ? (
-                <tr><td colSpan={4} style={{ ...td, textAlign: 'center', color: '#94a3b8' }}>No data</td></tr>
+                <tr><td colSpan={5} style={{ ...td, textAlign: 'center', color: '#94a3b8' }}>No data</td></tr>
               ) : recentTiers.map((t, i) => (
                 <tr key={i}>
                   <td style={td} title={t.user_id}>{t.user_id.slice(0, 12)}...</td>
+                  <td style={td}>{emailMap[t.user_id] || '—'}</td>
                   <td style={td}>{t.tier}</td>
                   <td style={td}>{t.trial_ends_at ? new Date(t.trial_ends_at).toLocaleDateString() : '—'}</td>
                   <td style={td}>{t.created_at ? new Date(t.created_at).toLocaleDateString() : '—'}</td>
