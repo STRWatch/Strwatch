@@ -22,6 +22,8 @@ export async function POST(req: NextRequest) {
     success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?upgraded=true`,
     cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/markets`,
     metadata: { userId, tier },
+    // Also stamp the Subscription itself so customer.subscription.* webhooks can resolve the user
+    subscription_data: { metadata: { userId, tier } },
   })
   return NextResponse.json({ url: session.url })
 }
