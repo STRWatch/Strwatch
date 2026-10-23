@@ -20,8 +20,8 @@ export async function savePreferences(
   }
 
   if (smsEnabled === true) {
-    const { isPaid, isAgency } = await getEffectiveTier(userId)
-    if (!(isPaid || isAgency)) return { ok: false, error: 'sms_requires_paid' }
+    const { isPaid, isAgency, isTrialActive } = await getEffectiveTier(userId)
+    if (!(isPaid || isAgency || isTrialActive)) return { ok: false, error: 'sms_requires_pro' }
   }
 
   const supabase = createClient()

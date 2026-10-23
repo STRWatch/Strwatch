@@ -15,9 +15,9 @@ export default async function SettingsPage() {
     .eq('user_id', userId)
     .single()
 
-  const { tier, isPaid, isAgency } = await getEffectiveTier(userId)
-  // SMS is paid-only server-side (savePreferences), so the UI gate must match.
-  const isPro = isPaid || isAgency
+  const { tier, isPaid, isAgency, isTrialActive } = await getEffectiveTier(userId)
+  // Must match the server gate in savePreferences: paid, agency, or active Pro trial.
+  const isPro = isPaid || isAgency || isTrialActive
 
   return <SettingsClient
     phone={prefs?.phone || ''}
