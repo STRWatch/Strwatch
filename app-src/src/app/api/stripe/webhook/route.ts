@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     if (userId && tier) {
       // Clear trial_ends_at so user is recognized as paid, not trial.
       // Persist the Stripe customer so later webhooks can be resolved without metadata.
-      await supabase.from('user_tiers').upsert(
+      const { error } = await supabase.from('user_tiers').upsert(
         {
           user_id: userId,
           tier,
@@ -39,6 +39,11 @@ export async function POST(req: NextRequest) {
         },
         { onConflict: 'user_id' }
       )
+      if (error) {
+        // Non-2xx makes Stripe retry; the upsert is idempotent so retries are safe.
+        console.error('webhook checkout.session.completed upsert error:', error)
+        return NextResponse.json({ error: 'db' }, { status: 500 })
+      }
     }
   }
   if (event.type === 'customer.subscription.deleted') {
@@ -48,19 +53,27 @@ export async function POST(req: NextRequest) {
       // Subscriptions created before subscription_data.metadata was set: resolve by customer
       const stripeCustomerId = customerId(sub.customer)
       if (stripeCustomerId) {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('user_tiers')
           .select('user_id')
           .eq('stripe_customer_id', stripeCustomerId)
           .maybeSingle()
+        if (error) {
+          console.error('webhook customer lookup error:', error)
+          return NextResponse.json({ error: 'db' }, { status: 500 })
+        }
         userId = data?.user_id ?? null
       }
     }
     if (userId) {
-      await supabase.from('user_tiers').upsert(
+      const { error } = await supabase.from('user_tiers').upsert(
         { user_id: userId, tier: 'free', trial_ends_at: null, updated_at: new Date().toISOString() },
         { onConflict: 'user_id' }
       )
+      if (error) {
+        console.error('webhook customer.subscription.deleted upsert error:', error)
+        return NextResponse.json({ error: 'db' }, { status: 500 })
+      }
     }
   }
   return NextResponse.json({ received: true })
