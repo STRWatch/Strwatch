@@ -1,14 +1,17 @@
 'use server'
 
+import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
 
 export async function addDeadline(
-  userId: string,
   city: string,
   title: string,
   deadlineDate: string,
   description: string,
-): Promise<{ ok: boolean }> {
+): Promise<{ ok: boolean; error?: string }> {
+  const { userId } = await auth()
+  if (!userId) return { ok: false, error: 'unauthenticated' }
+
   const supabase = createClient()
   const { error } = await supabase.from('deadlines').insert({
     user_id: userId,
@@ -26,9 +29,11 @@ export async function addDeadline(
 }
 
 export async function removeDeadline(
-  userId: string,
   deadlineId: string,
-): Promise<{ ok: boolean }> {
+): Promise<{ ok: boolean; error?: string }> {
+  const { userId } = await auth()
+  if (!userId) return { ok: false, error: 'unauthenticated' }
+
   const supabase = createClient()
   // Only allow deleting user's own custom deadlines
   const { error } = await supabase

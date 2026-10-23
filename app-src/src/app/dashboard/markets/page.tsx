@@ -63,7 +63,6 @@ export default async function MarketsPage() {
     || effectiveTier === 'agency'
 
   return <MarketsClient
-    userId={userId}
     savedCities={savedCities}
     tier={effectiveTier}
     maxMarkets={maxMarkets}

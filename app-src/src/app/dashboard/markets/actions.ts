@@ -1,8 +1,12 @@
 'use server'
 
+import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
 
-export async function addMarket(userId: string, city: string): Promise<{ ok: boolean }> {
+export async function addMarket(city: string): Promise<{ ok: boolean; error?: string }> {
+  const { userId } = await auth()
+  if (!userId) return { ok: false, error: 'unauthenticated' }
+
   const supabase = createClient()
   const { error } = await supabase
     .from('user_markets')
@@ -14,7 +18,10 @@ export async function addMarket(userId: string, city: string): Promise<{ ok: boo
   return { ok: true }
 }
 
-export async function removeMarket(userId: string, city: string): Promise<{ ok: boolean }> {
+export async function removeMarket(city: string): Promise<{ ok: boolean; error?: string }> {
+  const { userId } = await auth()
+  if (!userId) return { ok: false, error: 'unauthenticated' }
+
   const supabase = createClient()
   const { error } = await supabase
     .from('user_markets')

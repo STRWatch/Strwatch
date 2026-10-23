@@ -1,13 +1,16 @@
 'use server'
 
+import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
 
 export async function savePreferences(
-  userId: string,
   phone: string,
   smsEnabled: boolean,
   emailEnabled: boolean,
-): Promise<{ ok: boolean }> {
+): Promise<{ ok: boolean; error?: string }> {
+  const { userId } = await auth()
+  if (!userId) return { ok: false, error: 'unauthenticated' }
+
   const supabase = createClient()
 
   const { error } = await supabase

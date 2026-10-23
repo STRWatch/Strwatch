@@ -27,7 +27,6 @@ export default async function SettingsPage() {
   const isPro = tier === 'pro' || tier === 'agency' || isTrialActive
 
   return <SettingsClient
-    userId={userId}
     phone={prefs?.phone || ''}
     smsEnabled={prefs?.sms_enabled ?? true}
     emailEnabled={prefs?.email_enabled ?? true}

@@ -62,9 +62,9 @@ function resolveMarkets(input: string): typeof MARKETS {
 const POPULAR = ['Nashville, TN', 'Austin, TX', 'Denver, CO', 'Miami Beach, FL', 'San Diego, CA', 'San Francisco, CA', 'NYC, NY', 'Los Angeles, CA']
 
 export default function MarketsClient({
-  userId, savedCities, tier, maxMarkets, trialDaysLeft, isTrialActive, isPaid,
+  savedCities, tier, maxMarkets, trialDaysLeft, isTrialActive, isPaid,
 }: {
-  userId: string; savedCities: string[]; tier: string; maxMarkets: number;
+  savedCities: string[]; tier: string; maxMarkets: number;
   trialDaysLeft: number; isTrialActive: boolean; isPaid: boolean;
 }) {
   const [cities, setCities] = useState<string[]>(savedCities)
@@ -125,7 +125,7 @@ export default function MarketsClient({
     setSuggestions([])
     setShowSuggestions(false)
     startTransition(async () => {
-      const res = await addMarket(userId, city)
+      const res = await addMarket(city)
       if (!res.ok) { setCities(prev => prev.filter(c => c !== city)); showFeedback(city, 'Failed — try again') }
       else showFeedback(city, 'Added ✓')
     })
@@ -135,7 +135,7 @@ export default function MarketsClient({
     if (isFree) { showFeedback(city, 'Free plan: upgrade to change markets'); return }
     setCities(prev => prev.filter(c => c !== city))
     startTransition(async () => {
-      const res = await removeMarket(userId, city)
+      const res = await removeMarket(city)
       if (!res.ok) { setCities(prev => [...prev, city]); showFeedback(city, 'Failed — try again') }
     })
   }

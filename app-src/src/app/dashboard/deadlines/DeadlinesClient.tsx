@@ -57,7 +57,7 @@ export default function DeadlinesClient({
     setShowForm(false)
 
     startTransition(async () => {
-      const res = await addDeadline(userId, formCity, formTitle || optimistic.title, formDate || optimistic.deadline_date, formDesc)
+      const res = await addDeadline(formCity, formTitle || optimistic.title, formDate || optimistic.deadline_date, formDesc)
       if (!res.ok) {
         setDeadlines(prev => prev.filter(d => d.id !== optimistic.id))
         setFeedback('Failed to save — try again')
@@ -70,7 +70,7 @@ export default function DeadlinesClient({
     const removed = deadlines.find(d => d.id === id)
     setDeadlines(prev => prev.filter(d => d.id !== id))
     startTransition(async () => {
-      const res = await removeDeadline(userId, id)
+      const res = await removeDeadline(id)
       if (!res.ok && removed) {
         setDeadlines(prev => [...prev, removed].sort((a, b) => a.deadline_date.localeCompare(b.deadline_date)))
       }

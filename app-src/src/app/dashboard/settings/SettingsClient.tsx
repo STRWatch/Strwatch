@@ -4,9 +4,9 @@ import { useState, useTransition } from 'react'
 import { savePreferences } from './actions'
 
 export default function SettingsClient({
-  userId, phone: initialPhone, smsEnabled: initialSms, emailEnabled: initialEmail, isPro, tier,
+  phone: initialPhone, smsEnabled: initialSms, emailEnabled: initialEmail, isPro, tier,
 }: {
-  userId: string; phone: string; smsEnabled: boolean; emailEnabled: boolean; isPro: boolean; tier: string;
+  phone: string; smsEnabled: boolean; emailEnabled: boolean; isPro: boolean; tier: string;
 }) {
   const [phone, setPhone] = useState(initialPhone)
   const [smsEnabled, setSmsEnabled] = useState(initialSms)
@@ -41,7 +41,7 @@ export default function SettingsClient({
     const phoneE164 = digits.length === 10 ? `+1${digits}` : ''
 
     startTransition(async () => {
-      const res = await savePreferences(userId, phoneE164, smsEnabled, emailEnabled)
+      const res = await savePreferences(phoneE164, smsEnabled, emailEnabled)
       if (res.ok) {
         setSaved(true)
         setFeedback('Settings saved ✓')
