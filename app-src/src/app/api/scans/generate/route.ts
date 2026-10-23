@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getEffectiveTier } from '@/lib/tier'
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || ''
 const MODEL = 'claude-sonnet-4-5-20250929'
@@ -70,22 +71,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid city' }, { status: 400 })
   }
 
-  // Check tier — must be pro or on trial
+  // Check tier — paid, agency, or an active trial. Expired trials are downgraded by the helper.
   const supabase = createClient()
-  const { data: tierData } = await supabase
-    .from('user_tiers')
-    .select('tier, trial_ends_at')
-    .eq('user_id', userId)
-    .single()
-
-  const now = new Date()
-  const tier = tierData?.tier || 'free'
-  const trialEndsAt = tierData?.trial_ends_at ? new Date(tierData.trial_ends_at) : null
-  const isTrialActive = trialEndsAt && trialEndsAt > now && tier === 'pro'
-  const isPaid = tier === 'pro' && !trialEndsAt
-  const isAgency = tier === 'agency'
-
-  if (tier === 'free' && !isTrialActive) {
+  const { isTrialActive, isPaid, isAgency } = await getEffectiveTier(userId)
+  if (!(isAgency || isPaid || isTrialActive)) {
     return NextResponse.json({ error: 'Upgrade to Pro for market scans' }, { status: 403 })
   }
 

@@ -41,7 +41,7 @@ export default function SettingsClient({
     const phoneE164 = digits.length === 10 ? `+1${digits}` : ''
 
     startTransition(async () => {
-      const res = await savePreferences(phoneE164, smsEnabled, emailEnabled)
+      const res = await savePreferences(phoneE164, smsEnabled && isPro, emailEnabled)
       if (res.ok) {
         setSaved(true)
         setFeedback('Settings saved ✓')

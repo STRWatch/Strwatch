@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getEffectiveTier } from '@/lib/tier'
 import Link from 'next/link'
 
 const URGENCY_COLORS: Record<string, {bg:string;border:string;text:string}> = {
@@ -19,49 +20,15 @@ function getDeadlineUrgency(dateStr: string): {label:string;bg:string;border:str
   return {label:`${days}d left`,bg:'#e8f5ee',border:'#c8ecd8',text:'#2d7a4f',days}
 }
 
-const TRIAL_DAYS = 45
-
 export default async function DashboardPage() {
   const { userId } = await auth()
   if (!userId) redirect('/sign-in')
   const supabase = createClient()
 
-  // Check/create tier
-  const { data: tierData } = await supabase
-    .from('user_tiers')
-    .select('tier, trial_ends_at')
-    .eq('user_id', userId)
-    .single()
-
-  if (!tierData) {
-    const trialEnd = new Date()
-    trialEnd.setDate(trialEnd.getDate() + TRIAL_DAYS)
-    await supabase.from('user_tiers').insert({
-      user_id: userId,
-      tier: 'pro',
-      trial_ends_at: trialEnd.toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-  }
-
-  const { data: currentTier } = await supabase
-    .from('user_tiers')
-    .select('tier, trial_ends_at')
-    .eq('user_id', userId)
-    .single()
-
+  const { tier, isTrialActive, trialEndsAt } = await getEffectiveTier(userId)
   const now = new Date()
-  const trialEndsAt = currentTier?.trial_ends_at ? new Date(currentTier.trial_ends_at) : null
-  const isTrialActive = trialEndsAt && trialEndsAt > now && currentTier?.tier === 'pro'
-  const isTrialExpired = trialEndsAt && trialEndsAt <= now && currentTier?.tier === 'pro'
-
-  if (isTrialExpired) {
-    await supabase.from('user_tiers').update({
-      tier: 'free',
-      updated_at: new Date().toISOString(),
-    }).eq('user_id', userId)
-  }
-
+  // Trial has lapsed and the user never upgraded (checkout/cancel both null out trial_ends_at)
+  const isTrialExpired = tier === 'free' && trialEndsAt !== null && trialEndsAt <= now
   const trialDaysLeft = isTrialActive && trialEndsAt
     ? Math.ceil((trialEndsAt.getTime() - now.getTime()) / 86400000)
     : 0

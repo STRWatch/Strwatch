@@ -2,6 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import SettingsClient from './SettingsClient'
+import { getEffectiveTier } from '@/lib/tier'
 
 export default async function SettingsPage() {
   const { userId } = await auth()
@@ -14,23 +15,15 @@ export default async function SettingsPage() {
     .eq('user_id', userId)
     .single()
 
-  const { data: tierData } = await supabase
-    .from('user_tiers')
-    .select('tier, trial_ends_at')
-    .eq('user_id', userId)
-    .single()
-
-  const now = new Date()
-  const tier = tierData?.tier || 'free'
-  const trialEndsAt = tierData?.trial_ends_at ? new Date(tierData.trial_ends_at) : null
-  const isTrialActive = trialEndsAt && trialEndsAt > now && tier === 'pro'
-  const isPro = tier === 'pro' || tier === 'agency' || isTrialActive
+  const { tier, isPaid, isAgency } = await getEffectiveTier(userId)
+  // SMS is paid-only server-side (savePreferences), so the UI gate must match.
+  const isPro = isPaid || isAgency
 
   return <SettingsClient
     phone={prefs?.phone || ''}
     smsEnabled={prefs?.sms_enabled ?? true}
     emailEnabled={prefs?.email_enabled ?? true}
-    isPro={isPro || false}
+    isPro={isPro}
     tier={tier}
   />
 }
