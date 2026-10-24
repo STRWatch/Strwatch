@@ -13,3 +13,7 @@ import os
 SCRAPER_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if SCRAPER_ROOT not in sys.path:
     sys.path.insert(0, SCRAPER_ROOT)
+
+# alerts.router / alerts.reminders raise at import when SUPABASE_URL is unset.
+# Tests mock every HTTP call, so any placeholder value will do.
+os.environ.setdefault("SUPABASE_URL", "https://test-project.supabase.co")

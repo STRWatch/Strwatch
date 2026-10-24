@@ -21,7 +21,12 @@ from alerts import router
 
 log = logging.getLogger(__name__)
 
-SUPABASE_URL = os.getenv("SUPABASE_URL", "https://vnybfdzcwwsluwyznayq.supabase.co")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+if not SUPABASE_URL:
+    # Fail at import rather than silently pointing at the production project.
+    raise RuntimeError(
+        "Missing required environment variable: SUPABASE_URL (reminders.py)"
+    )
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
 
 REMINDER_WINDOWS = [60, 30, 7]  # days before deadline
