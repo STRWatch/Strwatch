@@ -1,7 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import DOMPurify from 'isomorphic-dompurify'
+import sanitizeHtml from 'sanitize-html'
 
 const URGENCY_COLORS: Record<string, {bg:string;border:string;text:string}> = {
   high:   {bg:'#fff0ee',border:'#f7c8c8',text:'#b84040'},
@@ -56,12 +56,12 @@ export default async function AlertsPage() {
                   {hasChecklist && (
                     <div
                       style={{marginBottom:'8px'}}
-                      dangerouslySetInnerHTML={{__html: DOMPurify.sanitize(alert.checklist, {
-                        ALLOWED_TAGS: ['ul', 'ol', 'li', 'p', 'strong', 'em', 'a', 'br'],
-                        ALLOWED_ATTR: ['href'],
-                        ALLOW_ARIA_ATTR: false,
-                        ALLOW_DATA_ATTR: false,
-                        ALLOWED_URI_REGEXP: /^https?:\/\//i,
+                      dangerouslySetInnerHTML={{__html: sanitizeHtml(alert.checklist, {
+                        allowedTags: ['ul', 'ol', 'li', 'p', 'strong', 'em', 'a', 'br'],
+                        allowedAttributes: { a: ['href'] },
+                        allowedSchemes: ['https', 'http'],
+                        allowedSchemesByTag: {},
+                        allowProtocolRelative: false,
                       })}}
                     />
                   )}
