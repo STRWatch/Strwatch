@@ -8,15 +8,18 @@ function requireEnv(name: string): string {
   return value
 }
 
-// Fail at module load rather than silently falling back to a hardcoded project URL.
-const SUPABASE_URL = requireEnv('NEXT_PUBLIC_SUPABASE_URL')
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-
+/**
+ * Service-role Supabase client for server code.
+ *
+ * Env is read on each call, not at module load. `next build` evaluates every
+ * route module while collecting page data, before runtime env exists, so a
+ * module-level check would fail the build. Reading lazily keeps the loud
+ * error but moves it to the first request that actually needs the client.
+ */
 export function createClient() {
-  if (!SERVICE_ROLE_KEY) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set')
-  }
-  return createSupabaseClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+  const supabaseUrl = requireEnv('NEXT_PUBLIC_SUPABASE_URL')
+  const serviceRoleKey = requireEnv('SUPABASE_SERVICE_ROLE_KEY')
+  return createSupabaseClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false }
   })
 }

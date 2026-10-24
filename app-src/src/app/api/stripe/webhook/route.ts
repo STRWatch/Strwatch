@@ -2,7 +2,28 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-02-25.clover' })
+function requireEnv(name: string): string {
+  const value = process.env[name]
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`)
+  }
+  return value
+}
+
+/**
+ * Stripe client and webhook secret, read inside the handler rather than at
+ * module load. `new Stripe(undefined)` throws, and `next build` evaluates this
+ * module while collecting page data, so a module-level client fails the build
+ * whenever STRIPE_SECRET_KEY is absent from the build environment.
+ */
+function getStripeWebhookEnv(): { stripe: Stripe; webhookSecret: string } {
+  const secretKey = requireEnv('STRIPE_SECRET_KEY')
+  const webhookSecret = requireEnv('STRIPE_WEBHOOK_SECRET')
+  return {
+    stripe: new Stripe(secretKey, { apiVersion: '2026-02-25.clover' }),
+    webhookSecret,
+  }
+}
 
 function customerId(value: unknown): string | null {
   if (typeof value === 'string') return value
@@ -13,11 +34,12 @@ function customerId(value: unknown): string | null {
 }
 
 export async function POST(req: NextRequest) {
+  const { stripe, webhookSecret } = getStripeWebhookEnv()
   const body = await req.text()
   const sig = req.headers.get('stripe-signature')!
   let event: Stripe.Event
   try {
-    event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET!)
+    event = stripe.webhooks.constructEvent(body, sig, webhookSecret)
   } catch (err) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
