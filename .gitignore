@@ -33,7 +33,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
-!.env.local.example
+!scraper/.env.example
 !app-src/.env.local.example
 
 # vercel
