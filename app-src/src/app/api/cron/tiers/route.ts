@@ -109,7 +109,9 @@ export async function GET(req: NextRequest) {
       console.warn(`cron/tiers: ${d.user_id} has active Stripe subscription ${d.stripe_customer_id}; backfilling instead of downgrading`)
       const { error } = await supabase
         .from('user_tiers')
-        .update({ stripe_customer_id: d.stripe_customer_id, updated_at: nowIso })
+        // trial_ends_at: null mirrors the webhook so cron/emails stops treating
+        // the (now paying) user as a lapsed trial and sending day-35 emails.
+        .update({ stripe_customer_id: d.stripe_customer_id, trial_ends_at: null, updated_at: nowIso })
         .eq('user_id', d.user_id)
         .is('stripe_customer_id', null)
       if (error) {

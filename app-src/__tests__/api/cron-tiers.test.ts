@@ -158,8 +158,10 @@ describe('GET /api/cron/tiers', () => {
     expect(body).toEqual({ downgraded: 0, backfilled: 1, errors: 0 })
     expect(rows[0].tier).toBe('pro')
     expect(rows[0].stripe_customer_id).toBe('cus_new')
+    expect(rows[0].trial_ends_at).toBeNull()
     expect(updates).toHaveLength(1)
     expect(updates[0].payload).not.toHaveProperty('tier')
+    expect(updates[0].payload).toMatchObject({ trial_ends_at: null })
   })
 
   it('a Stripe customer with no active subscription still gets downgraded', async () => {
