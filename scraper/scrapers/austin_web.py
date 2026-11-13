@@ -51,11 +51,11 @@ RETRY_BACKOFF = [5, 15, 30]  # seconds between retries
 REQUEST_TIMEOUT = 45  # increased from 20
 
 # Vercel proxy for .gov sites that block datacenter IPs
-PROXY_BASE = config.PROXY_BASE if hasattr(config, 'PROXY_BASE') else None
-PROXY_SECRET = config.PROXY_SECRET if hasattr(config, 'PROXY_SECRET') else None
+PROXY_BASE = config.PROXY_BASE
+PROXY_SECRET = config.PROXY_SECRET
 
 # Apify headless browser for sites with Cloudflare JS challenges
-APIFY_TOKEN = config.APIFY_TOKEN if hasattr(config, 'APIFY_TOKEN') else None
+APIFY_TOKEN = config.APIFY_TOKEN
 
 STR_PAGE = config.AUSTIN_STR_PAGE
 COUNCIL_PAGE = config.AUSTIN_COUNCIL_AGENDA_BASE
