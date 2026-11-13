@@ -43,13 +43,16 @@ export default async function DashboardPage() {
     : 0
 
   const { data: markets } = await supabase.from('user_markets').select('city').eq('user_id', userId)
-  // Prefer created_at (covers free-tier alerts queued for the weekly digest, where
-  // sent_at is NULL). Fall back to sent_at ordering if the column is not there yet.
-  let alertsRes = await supabase.from('alerts').select('*').eq('user_id', userId).order('created_at', {ascending:false}).limit(10)
-  if (alertsRes.error) {
-    alertsRes = await supabase.from('alerts').select('*').eq('user_id', userId).order('sent_at', {ascending:false, nullsFirst:true}).limit(10)
-  }
-  const alerts = alertsRes.data
+  // created_at covers free-tier alerts queued for the weekly digest (sent_at NULL);
+  // id breaks ties for rows created in the same instant.
+  const { data: alerts, error: alertsError } = await supabase
+    .from('alerts')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(10)
+  if (alertsError) console.error('dashboard alerts query error:', alertsError)
   const thisMonth = new Date(); thisMonth.setDate(1); thisMonth.setHours(0,0,0,0)
   const alertsThisMonth = (alerts||[]).filter(a => {
     const ts = alertDate(a)

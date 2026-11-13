@@ -24,23 +24,16 @@ export default async function AlertsPage() {
   const supabase = createClient()
 
   // Alerts are written per user, so query by user_id (same as the dashboard overview).
-  // Prefer created_at (covers free-tier alerts queued for the weekly digest, where
-  // sent_at is NULL). Fall back to sent_at ordering if the column is not there yet.
-  let alertsRes = await supabase
+  // created_at covers free-tier alerts queued for the weekly digest (sent_at NULL);
+  // id breaks ties for rows created in the same instant.
+  const { data: alerts, error: alertsError } = await supabase
     .from('alerts')
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
     .limit(50)
-  if (alertsRes.error) {
-    alertsRes = await supabase
-      .from('alerts')
-      .select('*')
-      .eq('user_id', userId)
-      .order('sent_at', { ascending: false, nullsFirst: true })
-      .limit(50)
-  }
-  const alerts = alertsRes.data
+  if (alertsError) console.error('alerts query error:', alertsError)
 
   return (
     <div>
