@@ -78,6 +78,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Upgrade to Pro for market scans' }, { status: 403 })
   }
 
+  // Daily cap (UTC day): 50 for paid/agency, 10 for trialing users.
+  const dailyCap = isPaid || isAgency ? 50 : 10
+  const startOfDayUtc = new Date()
+  startOfDayUtc.setUTCHours(0, 0, 0, 0)
+  const { count: todayCount, error: countErr } = await supabase
+    .from('scans')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .gte('created_at', startOfDayUtc.toISOString())
+  if (countErr) {
+    console.error('Scan count error:', countErr)
+    return NextResponse.json({ error: 'Could not check scan quota' }, { status: 500 })
+  }
+  if ((todayCount ?? 0) >= dailyCap) {
+    return NextResponse.json(
+      { error: `Daily scan limit reached (${dailyCap} per day). Try again tomorrow.` },
+      { status: 429 }
+    )
+  }
+
   // Check if this is a beta market (enriched data available)
   const betaContext = BETA_MARKETS[city] || null
   const isEnriched = !!betaContext
@@ -204,10 +224,11 @@ Return this exact JSON structure:
 
     if (saveErr) {
       console.error('Scan save error:', saveErr)
+      return NextResponse.json({ error: 'Report generated but could not be saved' }, { status: 500 })
     }
 
     return NextResponse.json({
-      id: saved?.id || null,
+      id: saved.id,
       report,
       is_enriched: isEnriched,
     })
