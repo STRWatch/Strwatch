@@ -17,6 +17,17 @@ type MarketRow = { user_id: string; city: string }
 type AlertRow = { urgency: string }
 type ScanRow = { is_enriched: boolean }
 type WaitlistRow = { email: string; created_at: string }
+type ScrapeRunRow = {
+  source: string
+  city: string
+  status: string
+  started_at: string
+  finished_at: string | null
+  pages_changed: number | null
+  error: string | null
+}
+
+const STALE_HOURS = 48
 
 function classifyTier(row: TierRow): string {
   if (row.tier === 'agency') return 'agency'
@@ -57,13 +68,14 @@ export default async function AdminPage() {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString()
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
 
-  const [tierRes, marketRes, waitlistRes, alertRes, scanRes, recentWaitlistRes] = await Promise.all([
+  const [tierRes, marketRes, waitlistRes, alertRes, scanRes, recentWaitlistRes, scrapeRunsRes] = await Promise.all([
     supabase.from('user_tiers').select(TIER_SELECT),
     supabase.from('user_markets').select('user_id, city'),
     supabase.from('waitlist').select('email, created_at'),
     supabase.from('alerts').select('urgency, sent_at').gte('sent_at', thirtyDaysAgo),
     supabase.from('scans').select('is_enriched'),
     supabase.from('waitlist').select('email, created_at').order('created_at', { ascending: false }).limit(10),
+    supabase.from('scrape_runs').select('source, city, status, started_at, finished_at, pages_changed, error').order('started_at', { ascending: false }).limit(2000),
   ])
 
   if (tierRes.error) errors.push(`user_tiers: ${tierRes.error.message}`)
@@ -72,6 +84,7 @@ export default async function AdminPage() {
   if (alertRes.error) errors.push(`alerts: ${alertRes.error.message}`)
   if (scanRes.error) errors.push(`scans: ${scanRes.error.message}`)
   if (recentWaitlistRes.error) errors.push(`recent waitlist: ${recentWaitlistRes.error.message}`)
+  if (scrapeRunsRes.error) errors.push(`scrape_runs: ${scrapeRunsRes.error.message}`)
 
   const tiers = (tierRes.data || []) as TierRow[]
   const markets = (marketRes.data || []) as MarketRow[]
@@ -79,6 +92,7 @@ export default async function AdminPage() {
   const alerts = (alertRes.data || []) as (AlertRow & { sent_at: string })[]
   const scans = (scanRes.data || []) as ScanRow[]
   const recentWaitlist = (recentWaitlistRes.data || []) as WaitlistRow[]
+  const scrapeRuns = (scrapeRunsRes.data || []) as ScrapeRunRow[]
 
   // ── Resolve emails from Clerk (all accounts, batches of 100) ───
   const emailMap: Record<string, string> = {}
@@ -128,6 +142,31 @@ export default async function AdminPage() {
     if (k in weekCounts) weekCounts[k]++
   }
   const weeklySignups = weekKeys.map(k => [k, weekCounts[k]] as const)
+
+  // ── Scraper health: latest run per (source, city) ──────
+  // Rows arrive ordered by started_at desc, so the first hit per key is the latest.
+  const latestRuns = new Map<string, ScrapeRunRow>()
+  for (const r of scrapeRuns) {
+    const key = `${r.source}\u0000${r.city}`
+    if (!latestRuns.has(key)) latestRuns.set(key, r)
+  }
+  const hoursSince = (r: ScrapeRunRow): number | null => {
+    const ts = r.finished_at || r.started_at
+    return ts ? (now.getTime() - new Date(ts).getTime()) / 3600000 : null
+  }
+  const isError = (r: ScrapeRunRow) => r.status === 'error'
+  const isStale = (r: ScrapeRunRow) => {
+    const h = hoursSince(r)
+    return h === null || h > STALE_HOURS
+  }
+  const rank = (r: ScrapeRunRow) => (isError(r) ? 0 : isStale(r) ? 1 : 2)
+  const healthRows = Array.from(latestRuns.values()).sort((a, b) => {
+    const d = rank(a) - rank(b)
+    if (d !== 0) return d
+    return a.source.localeCompare(b.source) || a.city.localeCompare(b.city)
+  })
+  const healthErrors = healthRows.filter(isError).length
+  const healthStale = healthRows.filter(r => !isError(r) && isStale(r)).length
 
   // ── Users table ────────────────────────────────────────
   const marketCountByUser: Record<string, number> = {}
@@ -366,6 +405,53 @@ export default async function AdminPage() {
               </div>
             )
           })}
+        </div>
+      </div>
+
+      {/* ── Scraper health ─────────────────────────────── */}
+      <div style={{ ...card, marginBottom: '32px', padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1.5px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '8px' }}>
+          <div style={{ ...sectionTitle, marginBottom: 0 }}>Scraper Health</div>
+          <div style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: '#64748b' }}>
+            {healthRows.length} sources · <span style={{ color: healthErrors > 0 ? '#b84040' : '#64748b' }}>{healthErrors} errors</span> · <span style={{ color: healthStale > 0 ? '#b87d2d' : '#64748b' }}>{healthStale} stale (&gt;{STALE_HOURS}h)</span>
+          </div>
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={th}>Source</th>
+                <th style={th}>City</th>
+                <th style={th}>Status</th>
+                <th style={th}>Finished</th>
+                <th style={th}>Hours since</th>
+                <th style={th}>Pages changed</th>
+                <th style={th}>Error</th>
+              </tr>
+            </thead>
+            <tbody>
+              {healthRows.length === 0 ? (
+                <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#94a3b8' }}>No scrape runs recorded</td></tr>
+              ) : healthRows.map(r => {
+                const h = hoursSince(r)
+                const err = isError(r)
+                const stale = !err && isStale(r)
+                const statusColor = err ? '#b84040' : stale ? '#b87d2d' : r.status === 'changed' ? '#3060a8' : '#2d7a4f'
+                const errText = r.error ? (r.error.length > 120 ? `${r.error.slice(0, 120)}…` : r.error) : '—'
+                return (
+                  <tr key={`${r.source}|${r.city}`} style={{ background: err ? '#fff7f6' : stale ? '#fffbf2' : undefined }}>
+                    <td style={td}>{r.source}</td>
+                    <td style={td}>{r.city}</td>
+                    <td style={{ ...td, color: statusColor, fontWeight: 600 }}>{r.status}{stale ? ' (stale)' : ''}</td>
+                    <td style={td}>{r.finished_at ? new Date(r.finished_at).toLocaleString() : '—'}</td>
+                    <td style={td}>{h === null ? '—' : h.toFixed(1)}</td>
+                    <td style={td}>{r.pages_changed ?? '—'}</td>
+                    <td style={{ ...td, maxWidth: '360px', whiteSpace: 'normal', wordBreak: 'break-word' }} title={r.error || undefined}>{errText}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
 
