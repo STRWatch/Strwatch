@@ -227,15 +227,18 @@ function ReportView({ report, city, isEnriched, onClose }: {
           <div style={{padding:'20px 28px',borderBottom:'1px solid var(--border)'}}>
             <div style={{fontFamily:'var(--font-syne)',fontWeight:700,fontSize:'0.95rem',color:'var(--ink)',marginBottom:'14px'}}>Key Contacts</div>
             <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
-              {report.key_contacts.map((contact: any, i: number) => (
+              {report.key_contacts.map((contact: any, i: number) => {
+                const contactHref = safeHref(contact.url)
+                return (
                 <div key={i} style={{display:'flex',gap:'12px',alignItems:'center'}}>
                   <span style={{fontFamily:'var(--font-syne)',fontWeight:600,fontSize:'0.82rem',color:'var(--ink)',minWidth:'200px'}}>{contact.name}</span>
                   {contact.phone && <span style={{fontFamily:'var(--font-mono)',fontSize:'0.72rem',color:'var(--text-muted)'}}>{contact.phone}</span>}
-                  {contact.url && (safeHref(contact.url)
-                    ? <a href={safeHref(contact.url)!} target="_blank" rel="noopener noreferrer" style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',color:'var(--green)'}}>Website →</a>
+                  {contact.url && (contactHref
+                    ? <a href={contactHref} target="_blank" rel="noopener noreferrer" style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',color:'var(--green)'}}>Website →</a>
                     : <span style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',color:'var(--text-faint)',wordBreak:'break-all'}}>{String(contact.url)}</span>)}
                 </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         )}
