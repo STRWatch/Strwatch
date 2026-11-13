@@ -93,7 +93,7 @@ export function day45Email(_ctx: LifecycleContext): EmailTemplate {
     'Your STRWatch trial has ended',
     `Hi,
 
-Your Pro trial ended today, so I have moved your account to the Free plan.
+Your Pro trial has ended, so I have moved your account to the Free plan.
 
 Free still works. You keep one market and a weekly digest of regulation changes there, so you will not miss anything big. What you lose is the rest of your markets, real-time alerts, SMS, and market scans.
 
