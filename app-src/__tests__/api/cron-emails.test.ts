@@ -4,27 +4,50 @@ const DAY = 86_400_000
 const TRIAL_DAYS = 45
 
 // ---- supabase mock -------------------------------------------------------
-let tierRows: { user_id: string; tier: string; trial_ends_at: string | null }[] = []
+let tierRows: { user_id: string; tier: string; trial_ends_at: string | null; founding_member?: boolean }[] = []
 let sentRows: { user_id: string; template: string }[] = []
+// Set to make the emails_sent insert fail (simulates a DB error on claim).
+let claimError: { message: string } | null = null
 
 function makeBuilder(table: string) {
   const b: Record<string, unknown> = {}
   const chain = () => b
+  let pending: Promise<unknown> | null = null
+  let rangeFrom = 0
+  let rangeTo = Infinity
+  const filters: Record<string, string> = {}
+
+  b.select = vi.fn(() => (pending ? b : b))
+  b.not = vi.fn(chain)
+  b.lt = vi.fn(chain)
+  b.order = vi.fn(chain)
+  b.range = vi.fn((from: number, to: number) => { rangeFrom = from; rangeTo = to; return b })
+  b.eq = vi.fn((col: string, val: string) => { filters[col] = val; return b })
+  b.upsert = vi.fn((row: { user_id: string; template: string }) => {
+    pending = (async () => {
+      if (claimError) return { data: null, error: claimError }
+      if (sentRows.some(r => r.user_id === row.user_id && r.template === row.template)) {
+        return { data: [], error: null } // ignoreDuplicates: nothing inserted
+      }
+      sentRows.push(row)
+      return { data: [{ template: row.template }], error: null }
+    })()
+    return b
+  })
+  b.delete = vi.fn(() => {
+    pending = Promise.resolve().then(() => {
+      sentRows = sentRows.filter(r => !(r.user_id === filters.user_id && r.template === filters.template))
+      return { error: null }
+    })
+    return b
+  })
   const resolve = () => {
-    if (table === 'user_tiers') return Promise.resolve({ data: tierRows, error: null })
-    if (table === 'emails_sent') return Promise.resolve({ data: sentRows, error: null })
+    if (pending) return pending
+    if (table === 'user_tiers') {
+      return Promise.resolve({ data: tierRows.slice(rangeFrom, rangeTo + 1), error: null })
+    }
     return Promise.resolve({ data: [], error: null })
   }
-  b.select = vi.fn(chain)
-  b.not = vi.fn(chain)
-  b.insert = vi.fn((row: { user_id: string; template: string }) => {
-    if (sentRows.some(r => r.user_id === row.user_id && r.template === row.template)) {
-      return Promise.resolve({ error: { message: 'duplicate key' } })
-    }
-    sentRows.push(row)
-    return Promise.resolve({ error: null })
-  })
-  // The builder is awaited directly after select().not(); make it thenable.
   b.then = (onOk: (v: unknown) => unknown, onErr?: (e: unknown) => unknown) =>
     resolve().then(onOk, onErr)
   return b
@@ -71,6 +94,7 @@ function request() {
 beforeEach(() => {
   tierRows = []
   sentRows = []
+  claimError = null
   sendEmail.mockClear()
   process.env.CRON_SECRET = 'test-secret'
 })
@@ -129,16 +153,52 @@ describe('GET /api/cron/emails', () => {
     expect(sendEmail).not.toHaveBeenCalled()
   })
 
-  it('counts a failed send as an error and does not record it, so it retries next run', async () => {
+  it('send failure deletes the claimed row so it retries next run', async () => {
     tierRows = [{ user_id: 'u1', tier: 'pro', trial_ends_at: trialEndsAtForDaysSinceStart(36) }]
     sendEmail.mockRejectedValueOnce(new Error('resend down'))
 
     const first = await (await GET(request())).json()
     expect(first).toEqual({ sent: 0, skipped: 0, errors: 1 })
     expect(sentRows).toHaveLength(0)
+    expect(sendEmail).toHaveBeenCalledTimes(1)
 
     const second = await (await GET(request())).json()
     expect(second).toEqual({ sent: 1, skipped: 0, errors: 0 })
     expect(sendEmail).toHaveBeenCalledTimes(2)
+    expect(sentRows).toEqual([{ user_id: 'u1', template: 'day35' }])
+  })
+
+  it('insert wins then sends: the emails_sent row exists before sendEmail is called', async () => {
+    tierRows = [{ user_id: 'u1', tier: 'pro', trial_ends_at: trialEndsAtForDaysSinceStart(36) }]
+    let rowsAtSendTime: typeof sentRows = []
+    sendEmail.mockImplementationOnce(async () => { rowsAtSendTime = [...sentRows] })
+
+    const body = await (await GET(request())).json()
+    expect(body).toEqual({ sent: 1, skipped: 0, errors: 0 })
+    expect(rowsAtSendTime).toEqual([{ user_id: 'u1', template: 'day35' }])
+  })
+
+  it('a pre-existing emails_sent row means no send (another run already claimed it)', async () => {
+    tierRows = [{ user_id: 'u1', tier: 'pro', trial_ends_at: trialEndsAtForDaysSinceStart(36) }]
+    sentRows = [{ user_id: 'u1', template: 'day35' }]
+    const body = await (await GET(request())).json()
+    expect(body).toEqual({ sent: 0, skipped: 1, errors: 0 })
+    expect(sendEmail).not.toHaveBeenCalled()
+  })
+
+  it('a claim DB error is counted and does not send', async () => {
+    tierRows = [{ user_id: 'u1', tier: 'pro', trial_ends_at: trialEndsAtForDaysSinceStart(36) }]
+    claimError = { message: 'db down' }
+    const body = await (await GET(request())).json()
+    expect(body).toEqual({ sent: 0, skipped: 0, errors: 1 })
+    expect(sendEmail).not.toHaveBeenCalled()
+  })
+
+  it('paginates user_tiers in pages of 500', async () => {
+    tierRows = Array.from({ length: 1203 }, (_, i) => ({
+      user_id: `u${String(i).padStart(4, '0')}`, tier: 'pro', trial_ends_at: trialEndsAtForDaysSinceStart(36),
+    }))
+    const body = await (await GET(request())).json()
+    expect(body).toEqual({ sent: 1203, skipped: 0, errors: 0 })
   })
 })

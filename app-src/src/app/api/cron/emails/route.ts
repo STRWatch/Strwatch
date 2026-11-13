@@ -3,16 +3,25 @@ import { clerkClient } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
 import { cronAuthError } from '@/lib/cron'
 import { TRIAL_DAYS } from '@/lib/tier'
-import { LIFECYCLE_TEMPLATES, dueTemplates, sendEmail } from '@/lib/email'
+import { LIFECYCLE_TEMPLATES, dueTemplates, sendEmail, type LifecycleTemplate } from '@/lib/email'
 
 const DAY_MS = 86_400_000
+const PAGE_SIZE = 500
 
-type TierRow = { user_id: string; tier: string; trial_ends_at: string | null; founding_member: boolean | null }
+type TierRow = {
+  user_id: string
+  tier: string
+  trial_ends_at: string | null
+  founding_member: boolean | null
+}
 
 /**
  * Daily: send trial lifecycle emails (day 35 / 45 / 50 after trial start).
- * Each (user, template) pair is sent at most once, tracked in emails_sent.
- * A failure for one user is logged and never aborts the run.
+ *
+ * The emails_sent unique(user_id, template) row is the lock: we insert first
+ * with ignoreDuplicates, and only send when our insert won. A failed send
+ * deletes the row so tomorrow's run retries. A failure for one user is logged
+ * and never aborts the run.
  */
 export async function GET(req: NextRequest) {
   const denied = cronAuthError(req)
@@ -20,78 +29,96 @@ export async function GET(req: NextRequest) {
 
   const supabase = createClient()
   const now = Date.now()
-
-  const { data: rows, error: rowsError } = await supabase
-    .from('user_tiers')
-    .select('user_id, tier, trial_ends_at, founding_member')
-    .not('trial_ends_at', 'is', null)
-  if (rowsError) {
-    console.error('cron/emails user_tiers query error:', rowsError)
-    return NextResponse.json({ error: 'db' }, { status: 500 })
-  }
-
-  const { data: sentRows, error: sentError } = await supabase
-    .from('emails_sent')
-    .select('user_id, template')
-  if (sentError) {
-    console.error('cron/emails emails_sent query error:', sentError)
-    return NextResponse.json({ error: 'db' }, { status: 500 })
-  }
-  const alreadySent = new Set(
-    (sentRows || []).map((r: { user_id: string; template: string }) => `${r.user_id}:${r.template}`)
-  )
+  // Day 35 is reached when trial_ends_at is within 10 days; anything later is not due yet.
+  const dueCutoff = new Date(now + (TRIAL_DAYS - 35) * DAY_MS).toISOString()
 
   let sent = 0
   let skipped = 0
   let errors = 0
 
-  for (const row of (rows || []) as TierRow[]) {
-    if (!row.trial_ends_at) continue
-    const trialStart = new Date(row.trial_ends_at).getTime() - TRIAL_DAYS * DAY_MS
-    const daysSinceStart = Math.floor((now - trialStart) / DAY_MS)
-
-    const pending = dueTemplates(daysSinceStart, row.tier).filter(t => {
-      const dup = alreadySent.has(`${row.user_id}:${t}`)
-      if (dup) skipped++
-      return !dup
-    })
-    if (pending.length === 0) continue
-
-    let email: string | null = null
-    try {
-      const client = await clerkClient()
-      const user = await client.users.getUser(row.user_id)
-      email = user.primaryEmailAddress?.emailAddress ?? null
-    } catch (err) {
-      console.error(`cron/emails clerk lookup failed for ${row.user_id}:`, err)
-      errors += pending.length
-      continue
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data: rows, error: rowsError } = await supabase
+      .from('user_tiers')
+      .select('user_id, tier, trial_ends_at, founding_member')
+      .not('trial_ends_at', 'is', null)
+      .lt('trial_ends_at', dueCutoff)
+      .order('user_id', { ascending: true })
+      .range(from, from + PAGE_SIZE - 1)
+    if (rowsError) {
+      console.error('cron/emails user_tiers query error:', rowsError)
+      return NextResponse.json({ error: 'db', sent, skipped, errors }, { status: 500 })
     }
-    if (!email) {
-      console.error(`cron/emails no primary email for ${row.user_id}`)
-      errors += pending.length
-      continue
-    }
+    const page = (rows || []) as TierRow[]
+    if (page.length === 0) break
 
-    for (const t of pending) {
-      try {
-        await sendEmail(email, LIFECYCLE_TEMPLATES[t]({ foundingMember: !!row.founding_member }))
-        const { error: insertError } = await supabase
+    for (const row of page) {
+      if (!row.trial_ends_at) continue
+      const trialStart = new Date(row.trial_ends_at).getTime() - TRIAL_DAYS * DAY_MS
+      const daysSinceStart = Math.floor((now - trialStart) / DAY_MS)
+      const due = dueTemplates(daysSinceStart, row.tier)
+      if (due.length === 0) continue
+
+      // Claim each (user, template) in the DB before doing any work.
+      const claimed: LifecycleTemplate[] = []
+      for (const t of due) {
+        // ON CONFLICT DO NOTHING + RETURNING: an empty result means another run already holds it.
+        const { data: inserted, error: insertError } = await supabase
           .from('emails_sent')
-          .insert({ user_id: row.user_id, template: t })
+          .upsert(
+            { user_id: row.user_id, template: t },
+            { onConflict: 'user_id,template', ignoreDuplicates: true }
+          )
+          .select('template')
         if (insertError) {
-          // Sent but not recorded: surface loudly so a duplicate tomorrow is explainable.
-          console.error(`cron/emails emails_sent insert failed for ${row.user_id}/${t}:`, insertError)
+          console.error(`cron/emails claim failed for ${row.user_id}/${t}:`, insertError)
           errors++
-        } else {
-          alreadySent.add(`${row.user_id}:${t}`)
-          sent++
+          continue
         }
+        if (!inserted || inserted.length === 0) {
+          skipped++
+          continue
+        }
+        claimed.push(t)
+      }
+      if (claimed.length === 0) continue
+
+      const release = async (t: LifecycleTemplate) => {
+        const { error } = await supabase
+          .from('emails_sent')
+          .delete()
+          .eq('user_id', row.user_id)
+          .eq('template', t)
+        if (error) console.error(`cron/emails release failed for ${row.user_id}/${t}:`, error)
+      }
+
+      let email: string | null = null
+      try {
+        const client = await clerkClient()
+        const user = await client.users.getUser(row.user_id)
+        email = user.primaryEmailAddress?.emailAddress ?? null
       } catch (err) {
-        console.error(`cron/emails send failed for ${row.user_id}/${t}:`, err)
-        errors++
+        console.error(`cron/emails clerk lookup failed for ${row.user_id}:`, err)
+      }
+      if (!email) {
+        console.error(`cron/emails no primary email for ${row.user_id}`)
+        for (const t of claimed) await release(t)
+        errors += claimed.length
+        continue
+      }
+
+      for (const t of claimed) {
+        try {
+          await sendEmail(email, LIFECYCLE_TEMPLATES[t]({ foundingMember: !!row.founding_member }))
+          sent++
+        } catch (err) {
+          console.error(`cron/emails send failed for ${row.user_id}/${t}:`, err)
+          await release(t)
+          errors++
+        }
       }
     }
+
+    if (page.length < PAGE_SIZE) break
   }
 
   return NextResponse.json({ sent, skipped, errors })
