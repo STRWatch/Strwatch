@@ -135,12 +135,17 @@ export const LIFECYCLE_TEMPLATES: Record<LifecycleTemplate, (ctx: LifecycleConte
   day50: day50Email,
 }
 
-/** Which lifecycle emails a user is due, given days since trial start and current tier. */
+/**
+ * Which lifecycle emails a user is due, given days since trial start and
+ * current tier. Each template has a window so a user who signed up long ago
+ * (or a cron that was down for a while) never gets a stale email.
+ */
 export function dueTemplates(daysSinceStart: number, tier: string): LifecycleTemplate[] {
+  const d = daysSinceStart
   const due: LifecycleTemplate[] = []
-  if (daysSinceStart >= 35) due.push('day35')
-  if (daysSinceStart >= 45 && tier === 'free') due.push('day45')
-  if (daysSinceStart >= 50 && tier === 'free') due.push('day50')
+  if (d >= 35 && d < 45) due.push('day35')
+  if (d >= 45 && d < 50 && tier === 'free') due.push('day45')
+  if (d >= 50 && d < 60 && tier === 'free') due.push('day50')
   return due
 }
 

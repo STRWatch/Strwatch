@@ -125,25 +125,30 @@ describe('GET /api/cron/emails', () => {
     expect(sendEmail).toHaveBeenCalledTimes(1)
   })
 
-  it('sends day45 and day50 only to free users, each exactly once across runs', async () => {
+  it('day 52: only day50 goes out, only to free users, and never twice', async () => {
     tierRows = [
       { user_id: 'free', tier: 'free', trial_ends_at: trialEndsAtForDaysSinceStart(52) },
       { user_id: 'paid', tier: 'pro', trial_ends_at: trialEndsAtForDaysSinceStart(52) },
     ]
 
     const first = await (await GET(request())).json()
-    // free: day35 + day45 + day50; paid: day35 only
-    expect(first).toEqual({ sent: 4, skipped: 0, errors: 0 })
-    expect(sentRows.map(r => `${r.user_id}:${r.template}`).sort()).toEqual([
-      'free:day35', 'free:day45', 'free:day50', 'paid:day35',
-    ])
+    // Windows: day35 and day45 have closed by day 52; paid user gets nothing.
+    expect(first).toEqual({ sent: 1, skipped: 0, errors: 0 })
+    expect(sentRows).toEqual([{ user_id: 'free', template: 'day50' }])
 
     const second = await (await GET(request())).json()
-    expect(second).toEqual({ sent: 0, skipped: 4, errors: 0 })
-    expect(sendEmail).toHaveBeenCalledTimes(4)
+    expect(second).toEqual({ sent: 0, skipped: 1, errors: 0 })
+    expect(sendEmail).toHaveBeenCalledTimes(1)
+  })
 
-    const subjects = sendEmail.mock.calls.map(c => c[1].subject)
-    expect(new Set(subjects).size).toBe(3)
+  it('day 46 free user gets day45 only; day 61 gets nothing', async () => {
+    tierRows = [
+      { user_id: 'a', tier: 'free', trial_ends_at: trialEndsAtForDaysSinceStart(46) },
+      { user_id: 'b', tier: 'free', trial_ends_at: trialEndsAtForDaysSinceStart(61) },
+    ]
+    const body = await (await GET(request())).json()
+    expect(body).toEqual({ sent: 1, skipped: 0, errors: 0 })
+    expect(sentRows).toEqual([{ user_id: 'a', template: 'day45' }])
   })
 
   it('does not send anything before day 35', async () => {
