@@ -21,6 +21,14 @@ function getDeadlineUrgency(dateStr: string): {label:string;bg:string;border:str
   return {label:`${days}d left`,bg:'#e8f5ee',border:'#c8ecd8',text:'#2d7a4f',days}
 }
 
+/** Display timestamp for an alert: sent_at, else created_at, else null. */
+function alertDate(a: { sent_at?: string | null; created_at?: string | null }): Date | null {
+  const raw = a.sent_at ?? a.created_at ?? null
+  if (!raw) return null
+  const d = new Date(raw)
+  return isNaN(d.getTime()) ? null : d
+}
+
 export default async function DashboardPage() {
   const { userId } = await auth()
   if (!userId) redirect('/sign-in')
@@ -35,9 +43,18 @@ export default async function DashboardPage() {
     : 0
 
   const { data: markets } = await supabase.from('user_markets').select('city').eq('user_id', userId)
-  const { data: alerts } = await supabase.from('alerts').select('*').eq('user_id', userId).order('sent_at', {ascending:false}).limit(10)
+  // Prefer created_at (covers free-tier alerts queued for the weekly digest, where
+  // sent_at is NULL). Fall back to sent_at ordering if the column is not there yet.
+  let alertsRes = await supabase.from('alerts').select('*').eq('user_id', userId).order('created_at', {ascending:false}).limit(10)
+  if (alertsRes.error) {
+    alertsRes = await supabase.from('alerts').select('*').eq('user_id', userId).order('sent_at', {ascending:false, nullsFirst:true}).limit(10)
+  }
+  const alerts = alertsRes.data
   const thisMonth = new Date(); thisMonth.setDate(1); thisMonth.setHours(0,0,0,0)
-  const alertsThisMonth = (alerts||[]).filter(a => new Date(a.sent_at) >= thisMonth).length
+  const alertsThisMonth = (alerts||[]).filter(a => {
+    const ts = alertDate(a)
+    return ts !== null && ts >= thisMonth
+  }).length
   const marketCount = (markets||[]).length
   const userCities = (markets || []).map((m: {city:string}) => m.city)
 
@@ -145,14 +162,19 @@ export default async function DashboardPage() {
           </div>
         ) : (alerts||[]).slice(0,5).map((alert:any) => {
           const c = URGENCY_COLORS[alert.urgency]||URGENCY_COLORS.medium
-          const date = new Date(alert.sent_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+          const ts = alertDate(alert)
+          const date = ts ? ts.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—'
+          const queued = alert.sent_at == null
           const sourceHref = safeHref(alert.source_url)
           return (
             <div key={alert.id} style={{padding:'16px 20px',borderBottom:'1px solid var(--border)',display:'flex',gap:'12px',alignItems:'flex-start'}}>
               <span style={{display:'inline-block',background:c.bg,border:`1px solid ${c.border}`,color:c.text,fontSize:'0.58rem',letterSpacing:'0.1em',textTransform:'uppercase',padding:'3px 8px',borderRadius:'100px',whiteSpace:'nowrap',marginTop:'2px'}}>{alert.urgency}</span>
               <div style={{flex:1}}>
                 <div style={{fontFamily:'var(--font-syne)',fontWeight:600,fontSize:'0.88rem',color:'var(--ink)',marginBottom:'2px'}}>{alert.headline}</div>
-                <div style={{fontFamily:'var(--font-mono)',fontSize:'0.58rem',color:'var(--text-faint)',letterSpacing:'0.05em'}}>{alert.city} · {date}</div>
+                <div style={{fontFamily:'var(--font-mono)',fontSize:'0.58rem',color:'var(--text-faint)',letterSpacing:'0.05em'}}>
+                  {alert.city} · {date}
+                  {queued && <span style={{display:'inline-block',marginLeft:'8px',background:'#f1f5f9',border:'1px solid var(--border)',color:'var(--text-muted)',fontSize:'0.52rem',letterSpacing:'0.08em',textTransform:'uppercase',padding:'1px 6px',borderRadius:'100px',verticalAlign:'middle'}}>Queued for weekly digest</span>}
+                </div>
               </div>
               {alert.source_url && (sourceHref
                 ? <a href={sourceHref} target="_blank" rel="noopener noreferrer" style={{fontFamily:'var(--font-mono)',fontSize:'0.58rem',color:'var(--green)',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>Source →</a>
