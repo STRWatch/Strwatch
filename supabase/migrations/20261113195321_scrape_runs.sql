@@ -13,3 +13,6 @@ create table if not exists scrape_runs (
 
 create index if not exists scrape_runs_source_started_at_idx
   on scrape_runs (source, started_at desc);
+
+-- Service role (the scraper) bypasses RLS; nothing else reads this table.
+alter table scrape_runs enable row level security;
