@@ -70,12 +70,20 @@ module.exports = async (req, res) => {
         'Accept-Language': 'en-US,en;q=0.9',
       },
       signal: AbortSignal.timeout(30000),
-      redirect: 'manual',
+      redirect: 'follow',
     });
 
-    if (response.status >= 300 && response.status < 400) {
-      console.error(`Proxy refused redirect for ${targetUrl}: ${response.status} -> ${response.headers.get('location') || '?'}`);
-      return res.status(502).json({ error: 'Upstream redirected' });
+    // Government sites redirect freely (http->https, trailing slashes, CMS moves),
+    // so follow them — but never serve a response that ended up off the allowlist.
+    let finalHost;
+    try {
+      finalHost = new URL(response.url || targetUrl).hostname;
+    } catch {
+      finalHost = '';
+    }
+    if (!ALLOWED_DOMAINS.includes(finalHost)) {
+      console.error(`Proxy refused off-allowlist redirect for ${targetUrl}: landed on ${finalHost || '?'}`);
+      return res.status(502).json({ error: 'Upstream redirected off allowlist' });
     }
 
     if (!response.ok) {
