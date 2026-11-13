@@ -8,14 +8,47 @@ Includes AI-generated compliance checklists in alert emails.
 """
 
 import os
+import html
 import logging
 import json
 import requests
+from datetime import datetime, timezone
 from typing import List, Optional
 from dotenv import load_dotenv
 load_dotenv()
 
 log = logging.getLogger(__name__)
+
+
+def esc(value) -> str:
+    """html.escape() any value destined for an email body. None -> ''."""
+    if value is None:
+        return ""
+    return html.escape(str(value), quote=True)
+
+
+def safe_href(url) -> Optional[str]:
+    """Return an escaped href only for https:// URLs; otherwise None.
+
+    Scraped or LLM-supplied URLs are never trusted as link targets unless they
+    are plain https. Callers render anything else as escaped text.
+    """
+    if not url:
+        return None
+    u = str(url).strip()
+    if not u.lower().startswith("https://"):
+        return None
+    return html.escape(u, quote=True)
+
+
+def source_link_html(url, label: str = "View source →", style: str = "") -> str:
+    """Render a source link as <a> for https URLs, or escaped text otherwise."""
+    href = safe_href(url)
+    if href:
+        return f'<a href="{href}" style="{style}">{label}</a>'
+    if url:
+        return f'<span style="font-size:0.8rem;color:#374530;word-break:break-all;">{esc(url)}</span>'
+    return ""
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 if not SUPABASE_URL:
@@ -154,7 +187,7 @@ def save_alert_to_supabase(user_id: str, city: str, subject: str,
             "detail": detail,
             "source_url": source_url,
             "urgency": urgency,
-            "sent_at": __import__("datetime").datetime.utcnow().isoformat(),
+            "sent_at": datetime.now(timezone.utc).isoformat(),
         }
         if checklist_json:
             payload["checklist"] = checklist_json
@@ -193,27 +226,36 @@ def send_alert_email(to_email: str, subject: str, city: str,
     }
     c = colors.get(urgency, colors["medium"])
 
-    html = f"""<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f7f9f5;font-family:Arial,sans-serif;">
+    # Everything below came from a scraped page, the LLM, or the DB. Escape it.
+    city_e = esc(city)
+    headline_e = esc(headline)
+    detail_e = esc(detail)
+    link_html = source_link_html(
+        source_url,
+        style="display:inline-block;background:#1a4d2e;color:white;text-decoration:none;font-size:0.8rem;font-weight:700;padding:10px 20px;border-radius:7px;",
+    )
+
+    html_body = f"""<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f7f9f5;font-family:Arial,sans-serif;">
 <div style="max-width:560px;margin:40px auto;background:white;border:1.5px solid #d8e8cf;border-radius:12px;overflow:hidden;">
   <div style="background:#1a4d2e;padding:20px 28px;">
     <span style="font-weight:800;font-size:1rem;color:white;">STR<span style="color:#4db87a;">Watch</span></span>
     <span style="margin-left:12px;font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.5);">Regulation Alert</span>
   </div>
   <div style="padding:16px 28px 0;">
-    <span style="display:inline-block;background:{c['bg']};border:1px solid {c['border']};color:{c['text']};font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;padding:5px 12px;border-radius:100px;font-weight:600;">{c['label']} · {city}</span>
+    <span style="display:inline-block;background:{c['bg']};border:1px solid {c['border']};color:{c['text']};font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;padding:5px 12px;border-radius:100px;font-weight:600;">{c['label']} · {city_e}</span>
   </div>
   <div style="padding:16px 28px 12px;">
-    <h2 style="margin:0;font-size:1.05rem;font-weight:700;color:#0f1a0a;line-height:1.4;">{headline}</h2>
+    <h2 style="margin:0;font-size:1.05rem;font-weight:700;color:#0f1a0a;line-height:1.4;">{headline_e}</h2>
   </div>
   <div style="margin:0 28px 20px;background:#f7f9f5;border:1px solid #d8e8cf;border-radius:8px;padding:14px 16px;">
-    <p style="margin:0;font-size:0.88rem;color:#374530;line-height:1.65;">{detail}</p>
+    <p style="margin:0;font-size:0.88rem;color:#374530;line-height:1.65;">{detail_e}</p>
   </div>
   <div style="padding:0 28px 20px;">
-    <a href="{source_url}" style="display:inline-block;background:#1a4d2e;color:white;text-decoration:none;font-size:0.8rem;font-weight:700;padding:10px 20px;border-radius:7px;">View source →</a>
+    {link_html}
   </div>
   {f'<div style="padding:0 28px 20px;">{checklist_html}</div>' if checklist_html else ''}
   <div style="background:#f7f9f5;border-top:1px solid #d8e8cf;padding:14px 28px;">
-    <p style="margin:0;font-size:0.7rem;color:#9aab90;">You're receiving this because you're watching <strong>{city}</strong> on STRWatch.<br>
+    <p style="margin:0;font-size:0.7rem;color:#9aab90;">You're receiving this because you're watching <strong>{city_e}</strong> on STRWatch.<br>
     <a href="https://app.strwatch.io/dashboard/settings" style="color:#2d7a4f;">Manage notifications</a></p>
   </div>
 </div></body></html>"""
@@ -223,7 +265,7 @@ def send_alert_email(to_email: str, subject: str, city: str,
     resp = requests.post(
         "https://api.resend.com/emails",
         headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
-        json={"from": RESEND_FROM, "to": [to_email], "subject": f"[STRWatch] {subject}", "html": html, "text": text},
+        json={"from": RESEND_FROM, "to": [to_email], "subject": f"[STRWatch] {subject}", "html": html_body, "text": text},
         timeout=15,
     )
     if resp.ok:
