@@ -322,13 +322,17 @@ def send_city_alert(city: str, subject: str, headline: str,
         # weekly digest. Unknown tier (lookup failed) fails open to real-time.
         if not realtime:
             log.info("User %s is tier=%s — queuing for weekly digest", user_id, tier)
-            save_alert_to_supabase(
+            saved = save_alert_to_supabase(
                 user_id=user_id, city=city, subject=subject,
                 headline=headline, detail=detail, source_url=source_url,
                 urgency=urgency, checklist_json=checklist_html if checklist_html else None,
                 sent=False,
             )
-            queued += 1
+            if saved:
+                queued += 1
+            else:
+                log.error("Failed to queue digest alert for user %s", user_id)
+                failed += 1
             continue
 
         # Send email (if enabled)

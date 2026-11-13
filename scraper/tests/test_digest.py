@@ -366,3 +366,19 @@ class TestDigestPrefs:
         result = run()
         mock_mark.assert_not_called()
         assert result["failed"] == 2 and result["sent"] == 0
+
+
+class TestFreeBranchSaveFailure:
+    @patch('alerts.router.get_user_tier', return_value="free")
+    @patch('alerts.router.get_user_preferences', return_value={})
+    @patch('alerts.router.get_user_email', return_value="free@example.com")
+    @patch('alerts.router.get_users_for_city', return_value=["u_a", "u_b"])
+    @patch('alerts.router.save_alert_to_supabase', side_effect=[False, True])
+    @patch('alerts.router.send_alert_email', return_value=True)
+    def test_failed_save_counts_as_failed_not_queued(self, mock_send, mock_save, *_):
+        from alerts.router import send_city_alert
+        result = send_city_alert(city="Austin, TX", subject="S", headline="H", detail="D",
+                                 source_url="https://x.gov", urgency="low")
+        mock_send.assert_not_called()
+        assert mock_save.call_count == 2
+        assert result["queued"] == 1 and result["failed"] == 1 and result["sent"] == 0
