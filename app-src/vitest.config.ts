@@ -11,8 +11,6 @@ export default defineConfig({
     // Playwright specs live in e2e/ and must not be run by vitest.
     // Spread the defaults so node_modules/.next etc. stay excluded.
     exclude: [...configDefaults.exclude, 'e2e/**'],
-    // No unit tests exist yet (the only one tested a deleted module); keep `npm test` green.
-    passWithNoTests: true,
   },
   resolve: {
     alias: {
