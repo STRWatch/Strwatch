@@ -3,7 +3,7 @@ import { clerkClient } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
 import { cronAuthError } from '@/lib/cron'
 import { TRIAL_DAYS } from '@/lib/tier'
-import { LIFECYCLE_TEMPLATES, dueTemplates, sendEmail, type LifecycleTemplate } from '@/lib/email'
+import { LIFECYCLE_TEMPLATES, dueTemplates, isLapsed, sendEmail, type LifecycleTemplate } from '@/lib/email'
 
 const DAY_MS = 86_400_000
 const PAGE_SIZE = 500
@@ -12,6 +12,7 @@ type TierRow = {
   user_id: string
   tier: string
   trial_ends_at: string | null
+  stripe_customer_id: string | null
   founding_member: boolean | null
 }
 
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
   for (let from = 0; ; from += PAGE_SIZE) {
     const { data: rows, error: rowsError } = await supabase
       .from('user_tiers')
-      .select('user_id, tier, trial_ends_at, founding_member')
+      .select('user_id, tier, trial_ends_at, stripe_customer_id, founding_member')
       .not('trial_ends_at', 'is', null)
       .lt('trial_ends_at', dueCutoff)
       .order('user_id', { ascending: true })
@@ -55,7 +56,8 @@ export async function GET(req: NextRequest) {
       if (!row.trial_ends_at) continue
       const trialStart = new Date(row.trial_ends_at).getTime() - TRIAL_DAYS * DAY_MS
       const daysSinceStart = Math.floor((now - trialStart) / DAY_MS)
-      const due = dueTemplates(daysSinceStart, row.tier)
+      const lapsed = isLapsed({ ...row, trial_ends_at: row.trial_ends_at }, now)
+      const due = dueTemplates(daysSinceStart, lapsed)
       if (due.length === 0) continue
 
       // Claim each (user, template) in the DB before doing any work.

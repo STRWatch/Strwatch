@@ -135,17 +135,35 @@ export const LIFECYCLE_TEMPLATES: Record<LifecycleTemplate, (ctx: LifecycleConte
   day50: day50Email,
 }
 
+export type LifecycleRow = {
+  tier: string
+  trial_ends_at: string | Date
+  stripe_customer_id: string | null
+}
+
+/**
+ * Trial is over and the user never paid. Computed, not read from the stored
+ * tier, so it is correct even before the daily tiers cron has flipped the row.
+ */
+export function isLapsed(row: LifecycleRow, now: number): boolean {
+  return (
+    new Date(row.trial_ends_at).getTime() < now &&
+    row.stripe_customer_id == null &&
+    row.tier !== 'agency'
+  )
+}
+
 /**
  * Which lifecycle emails a user is due, given days since trial start and
- * current tier. Each template has a window so a user who signed up long ago
- * (or a cron that was down for a while) never gets a stale email.
+ * whether the trial has lapsed unpaid. Each template has a window so a user
+ * who signed up long ago (or a cron that was down) never gets a stale email.
  */
-export function dueTemplates(daysSinceStart: number, tier: string): LifecycleTemplate[] {
+export function dueTemplates(daysSinceStart: number, lapsed: boolean): LifecycleTemplate[] {
   const d = daysSinceStart
   const due: LifecycleTemplate[] = []
   if (d >= 35 && d < 45) due.push('day35')
-  if (d >= 45 && d < 50 && tier === 'free') due.push('day45')
-  if (d >= 50 && d < 60 && tier === 'free') due.push('day50')
+  if (d >= 45 && d < 50 && lapsed) due.push('day45')
+  if (d >= 50 && d < 60 && lapsed) due.push('day50')
   return due
 }
 

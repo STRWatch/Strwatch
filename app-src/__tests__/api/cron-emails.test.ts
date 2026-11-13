@@ -4,7 +4,8 @@ const DAY = 86_400_000
 const TRIAL_DAYS = 45
 
 // ---- supabase mock -------------------------------------------------------
-let tierRows: { user_id: string; tier: string; trial_ends_at: string | null; founding_member?: boolean }[] = []
+type Row = { user_id: string; tier: string; trial_ends_at: string | null; stripe_customer_id?: string | null; founding_member?: boolean }
+let tierRows: Row[] = []
 let sentRows: { user_id: string; template: string }[] = []
 // Set to make the emails_sent insert fail (simulates a DB error on claim).
 let claimError: { message: string } | null = null
@@ -125,16 +126,18 @@ describe('GET /api/cron/emails', () => {
     expect(sendEmail).toHaveBeenCalledTimes(1)
   })
 
-  it('day 52: only day50 goes out, only to free users, and never twice', async () => {
+  it('day 52: only day50 goes out, only to lapsed users, and never twice', async () => {
     tierRows = [
-      { user_id: 'free', tier: 'free', trial_ends_at: trialEndsAtForDaysSinceStart(52) },
-      { user_id: 'paid', tier: 'pro', trial_ends_at: trialEndsAtForDaysSinceStart(52) },
+      // Stored tier still 'pro' (tiers cron has not flipped it) but no Stripe customer: lapsed.
+      { user_id: 'lapsed', tier: 'pro', trial_ends_at: trialEndsAtForDaysSinceStart(52) },
+      { user_id: 'paid', tier: 'pro', trial_ends_at: trialEndsAtForDaysSinceStart(52), stripe_customer_id: 'cus_1' },
+      { user_id: 'agency', tier: 'agency', trial_ends_at: trialEndsAtForDaysSinceStart(52) },
     ]
 
     const first = await (await GET(request())).json()
-    // Windows: day35 and day45 have closed by day 52; paid user gets nothing.
+    // Windows: day35 and day45 have closed by day 52; paid and agency users get nothing.
     expect(first).toEqual({ sent: 1, skipped: 0, errors: 0 })
-    expect(sentRows).toEqual([{ user_id: 'free', template: 'day50' }])
+    expect(sentRows).toEqual([{ user_id: 'lapsed', template: 'day50' }])
 
     const second = await (await GET(request())).json()
     expect(second).toEqual({ sent: 0, skipped: 1, errors: 0 })
