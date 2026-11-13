@@ -14,23 +14,13 @@ export default async function AlertsPage() {
   if (!userId) redirect('/sign-in')
   const supabase = createClient()
 
-  // Get user's saved markets first
-  const { data: userMarkets } = await supabase
-    .from('user_markets')
-    .select('city')
+  // Alerts are written per user, so query by user_id (same as the dashboard overview).
+  const { data: alerts } = await supabase
+    .from('alerts')
+    .select('*')
     .eq('user_id', userId)
-
-  const cities = (userMarkets || []).map((m: { city: string }) => m.city)
-
-  // Fetch alerts for any of the user's cities
-  const { data: alerts } = cities.length > 0
-    ? await supabase
-        .from('alerts')
-        .select('*')
-        .in('city', cities)
-        .order('sent_at', { ascending: false })
-        .limit(50)
-    : { data: [] }
+    .order('sent_at', { ascending: false })
+    .limit(50)
 
   return (
     <div>
