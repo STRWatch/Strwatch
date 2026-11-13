@@ -1,7 +1,7 @@
 """
 alerts/checklist.py — AI compliance checklist generator.
 
-Calls Claude Sonnet API to generate a personalized, step-by-step
+Calls the Anthropic Messages API to generate a personalized, step-by-step
 compliance checklist for each regulation change detected by scrapers.
 
 Usage:
@@ -15,7 +15,7 @@ Usage:
     )
     # Returns: {"steps": [...], "deadline": "April 15, 2026", "raw_text": "..."}
 
-Cost: ~$0.01–0.02 per checklist using Claude Sonnet 4.5.
+Model: env ANTHROPIC_MODEL (default claude-sonnet-5-5), read per call.
 """
 
 import os
@@ -26,8 +26,16 @@ from typing import Optional
 
 log = logging.getLogger(__name__)
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-MODEL = "claude-sonnet-4-5-20250929"
+DEFAULT_MODEL = "claude-sonnet-5-5"
+
+
+def _model() -> str:
+    """Model id, read from env at call time (ANTHROPIC_MODEL), not at import."""
+    return os.getenv("ANTHROPIC_MODEL", "").strip() or DEFAULT_MODEL
+
+
+def _api_key() -> str:
+    return os.getenv("ANTHROPIC_API_KEY", "")
 
 
 def generate_checklist(
@@ -50,7 +58,8 @@ def generate_checklist(
 
     Returns None if API call fails or is not configured.
     """
-    if not ANTHROPIC_API_KEY:
+    api_key = _api_key()
+    if not api_key:
         log.warning("ANTHROPIC_API_KEY not set — skipping checklist generation")
         return None
 
@@ -99,9 +108,9 @@ Generate a compliance checklist as JSON with this exact structure:
 Generate 4-7 steps. Be specific to {city} STR regulations."""
 
     try:
-        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        client = anthropic.Anthropic(api_key=api_key)
         message = client.messages.create(
-            model=MODEL,
+            model=_model(),
             max_tokens=1500,
             system=system_prompt,
             messages=[
