@@ -1,7 +1,7 @@
 """
 alerts/checklist.py — AI compliance checklist generator.
 
-Calls Claude Sonnet API to generate a personalized, step-by-step
+Calls the Anthropic Messages API to generate a personalized, step-by-step
 compliance checklist for each regulation change detected by scrapers.
 
 Usage:
@@ -15,18 +15,32 @@ Usage:
     )
     # Returns: {"steps": [...], "deadline": "April 15, 2026", "raw_text": "..."}
 
-Cost: ~$0.01–0.02 per checklist using Claude Sonnet 4.5.
+Model: env ANTHROPIC_MODEL (default claude-sonnet-5-5), read per call.
 """
 
 import os
+import html
 import json
 import logging
 from typing import Optional
 
+# Imported at module level on purpose: a missing package must fail at import
+# (caught by notify._generate_checklist_safe, alert still goes out without a
+# checklist) rather than mid-send after the snapshot hash has been saved.
+import nh3
+
 log = logging.getLogger(__name__)
 
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-MODEL = "claude-sonnet-4-5-20250929"
+DEFAULT_MODEL = "claude-sonnet-5-5"
+
+
+def _model() -> str:
+    """Model id, read from env at call time (ANTHROPIC_MODEL), not at import."""
+    return os.getenv("ANTHROPIC_MODEL", "").strip() or DEFAULT_MODEL
+
+
+def _api_key() -> str:
+    return os.getenv("ANTHROPIC_API_KEY", "")
 
 
 def generate_checklist(
@@ -49,7 +63,8 @@ def generate_checklist(
 
     Returns None if API call fails or is not configured.
     """
-    if not ANTHROPIC_API_KEY:
+    api_key = _api_key()
+    if not api_key:
         log.warning("ANTHROPIC_API_KEY not set — skipping checklist generation")
         return None
 
@@ -98,9 +113,9 @@ Generate a compliance checklist as JSON with this exact structure:
 Generate 4-7 steps. Be specific to {city} STR regulations."""
 
     try:
-        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        client = anthropic.Anthropic(api_key=api_key)
         message = client.messages.create(
-            model=MODEL,
+            model=_model(),
             max_tokens=1500,
             system=system_prompt,
             messages=[
@@ -171,55 +186,84 @@ def _format_checklist_text(result: dict, city: str, title: str) -> str:
     return "\n".join(lines)
 
 
+# HTML allowlist for checklist output. Mirrors the Next.js dashboard sanitizer
+# exactly — the same string is stored in alerts.checklist and rendered there.
+CHECKLIST_TAGS = {"ul", "ol", "li", "p", "strong", "em", "b", "i", "a", "br", "h3", "h4"}
+CHECKLIST_ATTRIBUTES = {"a": {"href"}}
+CHECKLIST_URL_SCHEMES = {"https", "http"}
+
+
+def sanitize_checklist_html(raw_html: str) -> str:
+    """nh3.clean() with the dashboard allowlist.
+
+    Tags outside the allowlist are stripped (content kept), only href on <a>
+    survives, and an href is kept only when it is an absolute http(s) URL —
+    protocol-relative (//host) and other relative URLs are dropped.
+    """
+    if not raw_html:
+        return ""
+    return nh3.clean(
+        raw_html,
+        tags=CHECKLIST_TAGS,
+        attributes=CHECKLIST_ATTRIBUTES,
+        attribute_filter=_href_filter,
+        url_schemes=CHECKLIST_URL_SCHEMES,
+        link_rel=None,
+    )
+
+
+def _href_filter(tag: str, attr: str, value: str):
+    """nh3 attribute_filter: keep href only for absolute http(s) URLs."""
+    if tag == "a" and attr == "href":
+        v = value.strip().lower()
+        if v.startswith("https://") or v.startswith("http://"):
+            return value
+        return None
+    return value
+
+
+def _esc(value) -> str:
+    if value is None:
+        return ""
+    return html.escape(str(value), quote=True)
+
+
 def format_checklist_html(result: dict) -> str:
-    """Format checklist as HTML for inclusion in alert emails."""
+    """Format checklist as HTML for inclusion in alert emails and the dashboard.
+
+    Only allowlisted tags are emitted (no div/table/style) so the output is
+    identical before and after the dashboard's sanitizer. Every field here is
+    LLM output and is escaped; the whole thing is then run through nh3.
+    """
     if not result or not result.get("steps"):
         return ""
 
-    urgency_colors = {
-        "high": {"bg": "#fff0ee", "border": "#f7c8c8", "text": "#b84040", "label": "Urgent"},
-        "medium": {"bg": "#fdf3e3", "border": "#f5d9a0", "text": "#b87d2d", "label": "Action needed"},
-        "low": {"bg": "#e8f5ee", "border": "#c8ecd8", "text": "#2d7a4f", "label": "FYI"},
-    }
-    c = urgency_colors.get(result.get("urgency", "medium"), urgency_colors["medium"])
+    urgency_labels = {"high": "Urgent", "medium": "Action needed", "low": "FYI"}
+    label = urgency_labels.get(result.get("urgency", "medium"), "Action needed")
 
-    steps_html = ""
-    for step in result["steps"]:
-        steps_html += f"""
-        <tr>
-          <td style="padding:10px 14px;vertical-align:top;width:32px;font-weight:700;color:#1a4d2e;font-size:14px;">{step['step']}.</td>
-          <td style="padding:10px 14px;vertical-align:top;">
-            <div style="font-weight:600;color:#0f1a0a;font-size:13px;margin-bottom:3px;">{step['action']}</div>
-            <div style="color:#374530;font-size:12px;line-height:1.5;">{step.get('detail', '')}</div>
-          </td>
-        </tr>"""
+    parts = [f"<h4>AI COMPLIANCE CHECKLIST <em>({_esc(label)})</em></h4>"]
 
-    deadline_html = ""
+    if result.get("summary"):
+        parts.append(f"<p>{_esc(result['summary'])}</p>")
+
     if result.get("deadline"):
-        deadline_html = f"""
-        <div style="background:#fdf3e3;border:1px solid #f5d9a0;border-radius:6px;padding:10px 14px;margin-bottom:16px;">
-          <span style="font-size:12px;font-weight:700;color:#b87d2d;">⚠ DEADLINE: {result['deadline']}</span>
-        </div>"""
+        parts.append(f"<p><strong>⚠ DEADLINE: {_esc(result['deadline'])}</strong></p>")
 
-    html = f"""
-    <div style="margin-top:20px;border:1.5px solid #d8e8cf;border-radius:10px;overflow:hidden;">
-      <div style="background:#1a4d2e;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;">
-        <span style="color:white;font-size:12px;font-weight:700;letter-spacing:0.5px;">AI COMPLIANCE CHECKLIST</span>
-        <span style="background:{c['bg']};color:{c['text']};border:1px solid {c['border']};font-size:10px;padding:3px 10px;border-radius:100px;font-weight:600;">{c['label']}</span>
-      </div>
-      <div style="padding:16px;">
-        {f'<p style="font-size:13px;color:#374530;margin:0 0 14px;line-height:1.55;">{result.get("summary", "")}</p>' if result.get("summary") else ""}
-        {deadline_html}
-        <table style="width:100%;border-collapse:collapse;">
-          {steps_html}
-        </table>
-        <div style="margin-top:14px;padding-top:12px;border-top:1px solid #d8e8cf;">
-          <span style="font-size:10px;color:#9aab90;letter-spacing:0.5px;">Generated by STRWatch AI · Verify details with your local government</span>
-        </div>
-      </div>
-    </div>"""
+    items = []
+    for step in result["steps"]:
+        if not isinstance(step, dict):
+            continue
+        action = _esc(step.get("action", ""))
+        detail = _esc(step.get("detail", ""))
+        item = f"<strong>{action}</strong>"
+        if detail:
+            item += f"<br>{detail}"
+        items.append(f"<li>{item}</li>")
+    parts.append("<ol>" + "".join(items) + "</ol>")
 
-    return html
+    parts.append("<p><em>Generated by STRWatch AI · Verify details with your local government</em></p>")
+
+    return sanitize_checklist_html("\n".join(parts))
 
 
 if __name__ == "__main__":

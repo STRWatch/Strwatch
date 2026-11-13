@@ -5,7 +5,8 @@ Includes dedup: won't send the same alert_key twice.
 Includes AI checklist generation for legislation and page-change alerts.
 """
 
-from typing import List
+from typing import List, Optional
+import html
 import logging
 import hashlib
 from datetime import datetime
@@ -14,6 +15,33 @@ import config
 from db import store
 
 log = logging.getLogger(__name__)
+
+
+def _esc(value) -> str:
+    """html.escape() any scraped / DB / LLM value before it goes into email HTML."""
+    if value is None:
+        return ""
+    return html.escape(str(value), quote=True)
+
+
+def _safe_href(url) -> Optional[str]:
+    """Escaped href for https:// URLs only; None for anything else."""
+    if not url:
+        return None
+    u = str(url).strip()
+    if not u.lower().startswith("https://"):
+        return None
+    return html.escape(u, quote=True)
+
+
+def _link_or_text(url, label: str, style: str) -> str:
+    """<a> for https URLs; otherwise the URL as escaped text."""
+    href = _safe_href(url)
+    if href:
+        return f'<a href="{href}" style="{style}">{label}</a>'
+    if url:
+        return f'<span style="font-size:12px;color:#3d3530;word-break:break-all;">{_esc(url)}</span>'
+    return ""
 
 
 def _make_key(*parts) -> str:
@@ -82,6 +110,18 @@ def _generate_checklist_safe(city: str, title: str, keywords: list,
         return {}
 
 
+def _format_checklist_safe(checklist: dict) -> str:
+    """format_checklist_html, but never raise — fall back to no checklist."""
+    if not checklist:
+        return ""
+    try:
+        from alerts.checklist import format_checklist_html
+        return format_checklist_html(checklist)
+    except Exception as e:
+        log.error("Checklist formatting error: %s", e)
+        return ""
+
+
 # ── Alert builders ────────────────────────────────────────────────────────────
 
 def alert_page_changed(name: str, city: str, url: str, priority: str):
@@ -97,10 +137,7 @@ def alert_page_changed(name: str, city: str, url: str, priority: str):
         source_url=url,
         alert_type="page_change",
     )
-    checklist_html = ""
-    if checklist:
-        from alerts.checklist import format_checklist_html
-        checklist_html = format_checklist_html(checklist)
+    checklist_html = _format_checklist_safe(checklist)
 
     subject = f"[STRWatch] {city} regulation page changed — {name}"
     urgency = "🚨 HIGH PRIORITY" if priority == "high" else "ℹ️"
@@ -111,13 +148,11 @@ def alert_page_changed(name: str, city: str, url: str, priority: str):
         STRWatch Alert
       </div>
       <div style="border:2px solid #c8411a;padding:20px;margin-bottom:0;">
-        <p style="margin:0 0 8px;font-size:18px;font-weight:bold;color:#1a1612;">{urgency} {name}</p>
-        <p style="margin:0 0 16px;color:#8a7f74;font-size:13px;">City: {city}</p>
+        <p style="margin:0 0 8px;font-size:18px;font-weight:bold;color:#1a1612;">{urgency} {_esc(name)}</p>
+        <p style="margin:0 0 16px;color:#8a7f74;font-size:13px;">City: {_esc(city)}</p>
         <p style="margin:0 0 8px;color:#3d3530;">A government STR page has changed. Review immediately for new rules, deadlines, or permit requirements.</p>
         <p style="margin:16px 0 0;">
-          <a href="{url}" style="background:#c8411a;color:white;padding:10px 20px;text-decoration:none;font-size:12px;letter-spacing:1px;text-transform:uppercase;">
-            View Changed Page →
-          </a>
+          {_link_or_text(url, "View Changed Page →", "background:#c8411a;color:white;padding:10px 20px;text-decoration:none;font-size:12px;letter-spacing:1px;text-transform:uppercase;")}
         </p>
       </div>
       {checklist_html}
@@ -152,10 +187,10 @@ def alert_denver_new_licenses(new_records: List[dict]):
 
     rows_html = "".join(f"""
         <tr style="border-bottom:1px solid #ddd6c8;">
-          <td style="padding:8px 12px;font-size:13px;">{r.get('address','—')}</td>
-          <td style="padding:8px 12px;font-size:13px;color:#8a7f74;">{r.get('license_type','—')}</td>
-          <td style="padding:8px 12px;font-size:13px;">{r.get('issued_date','—')}</td>
-          <td style="padding:8px 12px;font-size:13px;color:#4a7c59;font-weight:bold;">{r.get('status','—')}</td>
+          <td style="padding:8px 12px;font-size:13px;">{_esc(r.get('address','—'))}</td>
+          <td style="padding:8px 12px;font-size:13px;color:#8a7f74;">{_esc(r.get('license_type','—'))}</td>
+          <td style="padding:8px 12px;font-size:13px;">{_esc(r.get('issued_date','—'))}</td>
+          <td style="padding:8px 12px;font-size:13px;color:#4a7c59;font-weight:bold;">{_esc(r.get('status','—'))}</td>
         </tr>
     """ for r in new_records[:20])
 
@@ -204,9 +239,9 @@ def alert_denver_revocations(revoked_records: List[dict]):
 
     rows_html = "".join(f"""
         <tr style="border-bottom:1px solid #ddd6c8;">
-          <td style="padding:8px 12px;font-size:13px;">{r.get('address','—')}</td>
-          <td style="padding:8px 12px;font-size:13px;color:#c8411a;font-weight:bold;">{r.get('status','—')}</td>
-          <td style="padding:8px 12px;font-size:13px;color:#8a7f74;">{r.get('expiry_date','—')}</td>
+          <td style="padding:8px 12px;font-size:13px;">{_esc(r.get('address','—'))}</td>
+          <td style="padding:8px 12px;font-size:13px;color:#c8411a;font-weight:bold;">{_esc(r.get('status','—'))}</td>
+          <td style="padding:8px 12px;font-size:13px;color:#8a7f74;">{_esc(r.get('expiry_date','—'))}</td>
         </tr>
     """ for r in revoked_records[:20])
 
@@ -259,10 +294,7 @@ def alert_new_legislation(city: str, bill_id: str, title: str, url: str, keyword
         source_url=url,
         alert_type="legislation",
     )
-    checklist_html = ""
-    if checklist:
-        from alerts.checklist import format_checklist_html
-        checklist_html = format_checklist_html(checklist)
+    checklist_html = _format_checklist_safe(checklist)
 
     kw_str = ", ".join(keywords[:5])
     subject = f"[STRWatch] {city}: New STR legislation — {bill_id}"
@@ -274,16 +306,14 @@ def alert_new_legislation(city: str, bill_id: str, title: str, url: str, keyword
       </div>
       <div style="border:2px solid #2d5a8e;padding:20px;">
         <p style="margin:0 0 4px;font-size:12px;color:#8a7f74;text-transform:uppercase;letter-spacing:1px;">
-          {city} · {bill_id}
+          {_esc(city)} · {_esc(bill_id)}
         </p>
-        <p style="margin:0 0 12px;font-size:18px;font-weight:bold;color:#1a1612;">{title}</p>
+        <p style="margin:0 0 12px;font-size:18px;font-weight:bold;color:#1a1612;">{_esc(title)}</p>
         <p style="margin:0 0 12px;font-size:13px;color:#3d3530;">
-          Keywords matched: <strong>{kw_str}</strong>
+          Keywords matched: <strong>{_esc(kw_str)}</strong>
         </p>
         <p style="margin:16px 0 0;">
-          <a href="{url}" style="background:#2d5a8e;color:white;padding:10px 20px;text-decoration:none;font-size:12px;letter-spacing:1px;text-transform:uppercase;">
-            View Legislation →
-          </a>
+          {_link_or_text(url, "View Legislation →", "background:#2d5a8e;color:white;padding:10px 20px;text-decoration:none;font-size:12px;letter-spacing:1px;text-transform:uppercase;")}
         </p>
       </div>
       {checklist_html}
@@ -314,7 +344,7 @@ def alert_austin_new_licenses(licenses: list):
     summary = ", ".join(f"{n} {t}" for t, n in by_type.items())
     subject = f"[STRWatch] Austin: {count} new STR license(s) — {summary}"
     text = f"{count} new Austin STR license(s): {summary}"
-    send_email(subject, f"<p>{text}</p>", text)
+    send_email(subject, f"<p>{_esc(text)}</p>", text)
 
 
 def alert_austin_revocations(licenses: list):
@@ -351,7 +381,7 @@ def alert_nola_new_licenses(licenses: list):
     detail = "New licenses issued:\n" + "\n".join(detail_lines)
 
     subject = f"[STRWatch] New Orleans: {count} new STR license{'s' if count != 1 else ''}"
-    send_email(subject, f"<p>{headline}</p><p>{detail}</p>", f"{headline}\n\n{detail}")
+    send_email(subject, f"<p>{_esc(headline)}</p><p>{_esc(detail)}</p>", f"{headline}\n\n{detail}")
     store.record_alert(key, "nola_new_licenses", "New Orleans, LA", f"{count} new licenses")
 
     # Route to users
@@ -396,7 +426,7 @@ def alert_nola_revocations(licenses: list):
     detail = "License status changes detected:\n" + "\n".join(detail_lines)
 
     subject = f"[STRWatch] 🚨 New Orleans: {count} STR license{'s' if count != 1 else ''} revoked/expired"
-    send_email(subject, f"<p>{headline}</p><p>{detail}</p>", f"{headline}\n\n{detail}")
+    send_email(subject, f"<p>{_esc(headline)}</p><p>{_esc(detail)}</p>", f"{headline}\n\n{detail}")
     send_sms(f"[STRWatch] New Orleans: {count} STR license(s) revoked/expired. Check email.")
     store.record_alert(key, "nola_revocations", "New Orleans, LA", f"{count} revocations")
 
@@ -442,7 +472,7 @@ def alert_sandiego_new_licenses(licenses: list):
     detail = "New licenses issued:\n" + "\n".join(detail_lines)
 
     subject = f"[STRWatch] San Diego: {count} new STRO license{'s' if count != 1 else ''}"
-    send_email(subject, f"<p>{headline}</p><p>{detail}</p>", f"{headline}\n\n{detail}")
+    send_email(subject, f"<p>{_esc(headline)}</p><p>{_esc(detail)}</p>", f"{headline}\n\n{detail}")
     store.record_alert(key, "sandiego_new_licenses", "San Diego, CA", f"{count} new licenses")
 
     try:
@@ -470,7 +500,7 @@ def alert_sandiego_removals(licenses: list):
     detail = f"{count} license(s) no longer appear in the city's active license CSV. This may indicate revocation, expiration, or voluntary surrender."
 
     subject = f"[STRWatch] San Diego: {count} STRO license{'s' if count != 1 else ''} removed"
-    send_email(subject, f"<p>{headline}</p><p>{detail}</p>", f"{headline}\n\n{detail}")
+    send_email(subject, f"<p>{_esc(headline)}</p><p>{_esc(detail)}</p>", f"{headline}\n\n{detail}")
     send_sms(f"[STRWatch] San Diego: {count} STRO license(s) removed from active list. Check email.")
     store.record_alert(key, "sandiego_removals", "San Diego, CA", f"{count} removals")
 
