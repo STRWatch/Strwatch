@@ -2,6 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getStripe } from '@/lib/stripe'
+import { appUrl } from '@/lib/url'
 
 export async function POST() {
   const { userId } = await auth()
@@ -25,7 +26,7 @@ export async function POST() {
   const stripe = getStripe()
   const session = await stripe.billingPortal.sessions.create({
     customer,
-    return_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/settings`,
+    return_url: `${appUrl()}/dashboard/settings`,
   })
   return NextResponse.json({ url: session.url })
 }
