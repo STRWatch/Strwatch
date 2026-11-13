@@ -145,9 +145,12 @@ export default async function AdminPage() {
   for (const t of tiers) effectiveCounts[effectiveTier(t, now)]++
 
   // ── Trial-to-paid conversion ───────────────────────────
-  const paidUsers = tiers.filter(t => !!t.stripe_customer_id).length
-  const endedTrials = tiers.filter(t => t.trial_ends_at && new Date(t.trial_ends_at) < now).length
-  const conversionPct = endedTrials > 0 ? ((paidUsers / endedTrials) * 100).toFixed(1) : null
+  // converted: has a Stripe customer. lapsedUnpaid: no customer and trial already over.
+  // Resolved trials = converted + lapsedUnpaid (active trials are still undecided).
+  const converted = tiers.filter(t => !!t.stripe_customer_id).length
+  const lapsedUnpaid = tiers.filter(t => !t.stripe_customer_id && t.trial_ends_at && new Date(t.trial_ends_at) < now).length
+  const resolvedTrials = converted + lapsedUnpaid
+  const conversionPct = resolvedTrials > 0 ? ((converted / resolvedTrials) * 100).toFixed(1) : null
 
   // ── Signups per ISO week, last 12 weeks ────────────────
   const weekKeys: string[] = []
@@ -308,7 +311,7 @@ export default async function AdminPage() {
         <div style={card}>
           <div style={bigNum}>{conversionPct !== null ? `${conversionPct}%` : '—'}</div>
           <div style={label}>Trial → paid</div>
-          <div style={{ fontSize: '0.6rem', color: '#94a3b8', marginTop: '4px' }}>{paidUsers} paid / {endedTrials} trials ended</div>
+          <div style={{ fontSize: '0.6rem', color: '#94a3b8', marginTop: '4px' }}>{converted} converted / {resolvedTrials} resolved trials</div>
         </div>
         <div style={card}>
           <div style={bigNum}>{waitlistTotal}</div>
