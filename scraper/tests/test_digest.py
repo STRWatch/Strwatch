@@ -86,12 +86,54 @@ class TestGetUserTierTrial:
         assert get_user_tier("u") == "free"
 
     @patch('alerts.router.requests.get')
-    def test_no_row_is_free(self, mock_get):
+    def test_no_row_is_unknown(self, mock_get):
         resp = MagicMock(ok=True)
         resp.json.return_value = []
         mock_get.return_value = resp
         from alerts.router import get_user_tier
+        assert get_user_tier("u") is None
+
+    @patch('alerts.router.requests.get')
+    def test_http_error_is_unknown(self, mock_get):
+        mock_get.return_value = MagicMock(ok=False, status_code=500, text="boom")
+        from alerts.router import get_user_tier
+        assert get_user_tier("u") is None
+
+    @patch('alerts.router.requests.get', side_effect=ConnectionError("down"))
+    def test_exception_is_unknown(self, _get):
+        from alerts.router import get_user_tier
+        assert get_user_tier("u") is None
+
+    @patch('alerts.router.requests.get')
+    def test_explicit_free_row(self, mock_get):
+        mock_get.return_value = self._tier_resp("free", None)
+        from alerts.router import get_user_tier
         assert get_user_tier("u") == "free"
+
+    def test_is_realtime_tier(self):
+        from alerts.router import is_realtime_tier
+        assert is_realtime_tier(None) is True
+        assert is_realtime_tier("pro") is True
+        assert is_realtime_tier("agency") is True
+        assert is_realtime_tier("free") is False
+
+
+class TestUnknownTierFailsOpen:
+    @patch('alerts.router.get_user_tier', return_value=None)
+    @patch('alerts.router.get_user_preferences', return_value={"phone": "+15550001111", "sms_enabled": True})
+    @patch('alerts.router.get_user_email', return_value="who@example.com")
+    @patch('alerts.router.get_users_for_city', return_value=["u_unknown"])
+    @patch('alerts.router.save_alert_to_supabase', return_value=True)
+    @patch('alerts.router.send_alert_email', return_value=True)
+    @patch('alerts.router.send_sms_to_user', return_value=True)
+    def test_unknown_tier_gets_realtime_email_but_no_sms(self, mock_sms, mock_send, mock_save, *_):
+        from alerts.router import send_city_alert
+        result = send_city_alert(city="Austin, TX", subject="S", headline="H", detail="D",
+                                 source_url="https://x.gov", urgency="high")
+        mock_send.assert_called_once()
+        mock_sms.assert_not_called()  # SMS still requires a confirmed pro/agency tier
+        assert mock_save.call_args[1].get("sent", True) is True
+        assert result["sent"] == 1 and result["queued"] == 0
 
 
 class TestSaveAlertSentAt:

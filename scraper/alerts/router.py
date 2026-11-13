@@ -126,10 +126,16 @@ def get_user_preferences(user_id: str) -> dict:
         return {}
 
 
-def get_user_tier(user_id: str) -> str:
-    """Fetch user tier from Supabase."""
+def get_user_tier(user_id: str) -> Optional[str]:
+    """Fetch user tier from Supabase.
+
+    Returns the tier string ("free", "pro", "agency"), or None when the
+    lookup fails or there is no row. None means "unknown" and callers must
+    fail OPEN (real-time delivery) — only an explicit free tier is digested.
+    """
     if not SUPABASE_SERVICE_KEY:
-        return "free"
+        log.error("SUPABASE_SERVICE_ROLE_KEY not set — tier unknown for %s", user_id)
+        return None
     try:
         resp = requests.get(
             f"{SUPABASE_URL}/rest/v1/user_tiers",
@@ -138,15 +144,16 @@ def get_user_tier(user_id: str) -> str:
             timeout=10,
         )
         if not resp.ok:
-            return "free"
+            log.error("Tier lookup failed for %s: %s %s", user_id, resp.status_code, resp.text[:200])
+            return None
         rows = resp.json()
         if not rows:
-            return "free"
+            log.error("No user_tiers row for %s — tier unknown", user_id)
+            return None
         row = rows[0]
-        tier = row.get("tier", "free")
+        tier = row.get("tier") or "free"
         trial_ends = row.get("trial_ends_at")
         if trial_ends and tier == "pro":
-            from datetime import datetime, timezone
             ends = datetime.fromisoformat(trial_ends.replace("Z", "+00:00"))
             if ends > datetime.now(timezone.utc):
                 return "pro"  # trial still active
@@ -154,7 +161,12 @@ def get_user_tier(user_id: str) -> str:
         return tier
     except Exception as e:
         log.error("Error fetching tier for %s: %s", user_id, e)
-        return "free"
+        return None
+
+
+def is_realtime_tier(tier: Optional[str]) -> bool:
+    """Only an explicit 'free' tier is batched into the digest; unknown fails open."""
+    return tier != "free"
 
 
 def send_sms_to_user(phone: str, message: str) -> bool:
@@ -303,10 +315,12 @@ def send_city_alert(city: str, subject: str, headline: str,
         sms_enabled = prefs.get("sms_enabled", True)
         phone = prefs.get("phone", "")
         is_pro = tier in REALTIME_TIERS
+        realtime = is_realtime_tier(tier)
 
-        # Free (or expired-trial) users get no real-time email. The alert row
-        # is still inserted with sent_at NULL and goes out in the weekly digest.
-        if not is_pro:
+        # Explicit free (or expired-trial) users get no real-time email. The
+        # alert row is still inserted with sent_at NULL and goes out in the
+        # weekly digest. Unknown tier (lookup failed) fails open to real-time.
+        if not realtime:
             log.info("User %s is tier=%s — queuing for weekly digest", user_id, tier)
             save_alert_to_supabase(
                 user_id=user_id, city=city, subject=subject,
