@@ -4,7 +4,15 @@ import { clerkClient } from '@clerk/nextjs/server'
 
 export const dynamic = 'force-dynamic'
 
-type TierRow = { user_id: string; tier: string; trial_ends_at: string | null; created_at?: string }
+type TierRow = {
+  user_id: string
+  tier: string
+  trial_ends_at: string | null
+  created_at?: string | null
+  stripe_customer_id?: string | null
+  founding_member?: boolean | null
+  last_login_at?: string | null
+}
 type MarketRow = { user_id: string; city: string }
 type AlertRow = { urgency: string }
 type ScanRow = { is_enriched: boolean }
@@ -19,6 +27,28 @@ function classifyTier(row: TierRow): string {
   return 'free'
 }
 
+type EffectiveTierKey = 'free' | 'trial' | 'pro' | 'agency'
+
+/** Mirrors getEffectiveTier: an expired, unpaid 'pro' trial reads as free. */
+function effectiveTier(row: TierRow, now: Date): EffectiveTierKey {
+  if (row.tier === 'agency') return 'agency'
+  if (row.tier !== 'pro') return 'free'
+  if (!row.trial_ends_at) return 'pro'
+  return new Date(row.trial_ends_at) > now ? 'trial' : 'free'
+}
+
+/** ISO-8601 week key (e.g. 2026-W46) for a date, computed in UTC. */
+function isoWeekKey(d: Date): string {
+  const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+  const day = date.getUTCDay() || 7
+  date.setUTCDate(date.getUTCDate() + 4 - day)
+  const yearStart = Date.UTC(date.getUTCFullYear(), 0, 1)
+  const week = Math.ceil(((date.getTime() - yearStart) / 86400000 + 1) / 7)
+  return `${date.getUTCFullYear()}-W${String(week).padStart(2, '0')}`
+}
+
+const TIER_SELECT = 'user_id, tier, trial_ends_at, created_at, stripe_customer_id, founding_member, last_login_at'
+
 export default async function AdminPage() {
   await requireAdmin()
   const supabase = createClient()
@@ -27,13 +57,12 @@ export default async function AdminPage() {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString()
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
 
-  const [tierRes, marketRes, waitlistRes, alertRes, scanRes, recentTierRes, recentWaitlistRes] = await Promise.all([
-    supabase.from('user_tiers').select('user_id, tier, trial_ends_at, created_at'),
+  const [tierRes, marketRes, waitlistRes, alertRes, scanRes, recentWaitlistRes] = await Promise.all([
+    supabase.from('user_tiers').select(TIER_SELECT),
     supabase.from('user_markets').select('user_id, city'),
     supabase.from('waitlist').select('email, created_at'),
     supabase.from('alerts').select('urgency, sent_at').gte('sent_at', thirtyDaysAgo),
     supabase.from('scans').select('is_enriched'),
-    supabase.from('user_tiers').select('user_id, tier, trial_ends_at, created_at').order('created_at', { ascending: false }).limit(10),
     supabase.from('waitlist').select('email, created_at').order('created_at', { ascending: false }).limit(10),
   ])
 
@@ -42,7 +71,6 @@ export default async function AdminPage() {
   if (waitlistRes.error) errors.push(`waitlist: ${waitlistRes.error.message}`)
   if (alertRes.error) errors.push(`alerts: ${alertRes.error.message}`)
   if (scanRes.error) errors.push(`scans: ${scanRes.error.message}`)
-  if (recentTierRes.error) errors.push(`recent user_tiers: ${recentTierRes.error.message}`)
   if (recentWaitlistRes.error) errors.push(`recent waitlist: ${recentWaitlistRes.error.message}`)
 
   const tiers = (tierRes.data || []) as TierRow[]
@@ -50,18 +78,20 @@ export default async function AdminPage() {
   const waitlist = (waitlistRes.data || []) as WaitlistRow[]
   const alerts = (alertRes.data || []) as (AlertRow & { sent_at: string })[]
   const scans = (scanRes.data || []) as ScanRow[]
-  const recentTiers = (recentTierRes.data || []) as TierRow[]
   const recentWaitlist = (recentWaitlistRes.data || []) as WaitlistRow[]
 
-  // ── Resolve emails from Clerk ───────────────────────────
+  // ── Resolve emails from Clerk (all accounts, batches of 100) ───
   const emailMap: Record<string, string> = {}
-  const userIdsToResolve = recentTiers.map(t => t.user_id).filter(Boolean)
-  if (userIdsToResolve.length > 0) {
+  const allUserIds = Array.from(new Set(tiers.map(t => t.user_id).filter(Boolean)))
+  if (allUserIds.length > 0) {
     try {
       const clerk = await clerkClient()
-      const res = await clerk.users.getUserList({ userId: userIdsToResolve, limit: 10 })
-      for (const u of res.data) {
-        emailMap[u.id] = u.emailAddresses?.[0]?.emailAddress || ''
+      for (let i = 0; i < allUserIds.length; i += 100) {
+        const batch = allUserIds.slice(i, i + 100)
+        const res = await clerk.users.getUserList({ userId: batch, limit: 100 })
+        for (const u of res.data) {
+          emailMap[u.id] = u.emailAddresses?.[0]?.emailAddress || ''
+        }
       }
     } catch (e: any) {
       errors.push(`Clerk user lookup: ${e.message}`)
@@ -77,6 +107,32 @@ export default async function AdminPage() {
   const signups7d = tiers.filter(t => t.created_at && t.created_at >= sevenDaysAgo).length
   const signups30d = tiers.filter(t => t.created_at && t.created_at >= thirtyDaysAgo).length
   const mrr = counts.pro_paid * 29 + counts.agency * 99
+
+  // ── Effective tier counts (same logic as getEffectiveTier) ──
+  const now = new Date()
+  const effectiveCounts: Record<EffectiveTierKey, number> = { free: 0, trial: 0, pro: 0, agency: 0 }
+  for (const t of tiers) effectiveCounts[effectiveTier(t, now)]++
+
+  // ── Trial-to-paid conversion ───────────────────────────
+  const paidUsers = tiers.filter(t => !!t.stripe_customer_id).length
+  const endedTrials = tiers.filter(t => t.trial_ends_at && new Date(t.trial_ends_at) < now).length
+  const conversionPct = endedTrials > 0 ? ((paidUsers / endedTrials) * 100).toFixed(1) : null
+
+  // ── Signups per ISO week, last 12 weeks ────────────────
+  const weekKeys: string[] = []
+  for (let i = 11; i >= 0; i--) weekKeys.push(isoWeekKey(new Date(now.getTime() - i * 7 * 86400000)))
+  const weekCounts: Record<string, number> = Object.fromEntries(weekKeys.map(k => [k, 0]))
+  for (const t of tiers) {
+    if (!t.created_at) continue
+    const k = isoWeekKey(new Date(t.created_at))
+    if (k in weekCounts) weekCounts[k]++
+  }
+  const weeklySignups = weekKeys.map(k => [k, weekCounts[k]] as const)
+
+  // ── Users table ────────────────────────────────────────
+  const marketCountByUser: Record<string, number> = {}
+  for (const m of markets) marketCountByUser[m.user_id] = (marketCountByUser[m.user_id] || 0) + 1
+  const userRows = [...tiers].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
 
   // ── Waitlist stats ─────────────────────────────────────
   const waitlistTotal = waitlist.length
@@ -106,6 +162,8 @@ export default async function AdminPage() {
     medium:   { bg: '#fdf3e3', border: '#f5d9a0', text: '#b87d2d' },
     low:      { bg: '#e8f0ff', border: '#b8cff7', text: '#3060a8' },
   }
+
+  const EFFECTIVE_LABELS: Record<EffectiveTierKey, string> = { free: 'Free', trial: 'Trial', pro: 'Pro', agency: 'Agency' }
 
   const TIER_LABELS: Record<string, string> = {
     free: 'Free',
@@ -197,12 +255,42 @@ export default async function AdminPage() {
           <div style={label}>Est. MRR</div>
         </div>
         <div style={card}>
+          <div style={bigNum}>{conversionPct !== null ? `${conversionPct}%` : '—'}</div>
+          <div style={label}>Trial → paid</div>
+          <div style={{ fontSize: '0.6rem', color: '#94a3b8', marginTop: '4px' }}>{paidUsers} paid / {endedTrials} trials ended</div>
+        </div>
+        <div style={card}>
           <div style={bigNum}>{waitlistTotal}</div>
           <div style={label}>Waitlist total</div>
         </div>
         <div style={card}>
           <div style={bigNum}>{waitlist7d}</div>
           <div style={label}>Waitlist (7d)</div>
+        </div>
+      </div>
+
+      {/* ── Effective tier + weekly signups ───────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginBottom: '32px' }}>
+        <div style={card}>
+          <div style={sectionTitle}>Current Users by Effective Tier</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '12px' }}>
+            {(Object.keys(EFFECTIVE_LABELS) as EffectiveTierKey[]).map(key => (
+              <div key={key} style={{ padding: '14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a', lineHeight: 1, marginBottom: '4px' }}>{effectiveCounts[key]}</div>
+                <div style={{ fontSize: '0.65rem', color: '#64748b' }}>{EFFECTIVE_LABELS[key]}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: '0.6rem', color: '#94a3b8', marginTop: '10px' }}>Expired, unpaid Pro trials count as Free (same rule as getEffectiveTier).</div>
+        </div>
+        <div style={card}>
+          <div style={sectionTitle}>Signups per ISO Week (last 12)</div>
+          {weeklySignups.map(([week, count], i) => (
+            <div key={week} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: i < weeklySignups.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+              <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#334155' }}>{week}</span>
+              <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>{count}</span>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -281,31 +369,35 @@ export default async function AdminPage() {
         </div>
       </div>
 
-      {/* ── Recent account signups ─────────────────────── */}
+      {/* ── Users ──────────────────────────────────────── */}
       <div style={{ ...card, marginBottom: '32px', padding: 0, overflow: 'hidden' }}>
         <div style={{ padding: '16px 20px', borderBottom: '1.5px solid #e2e8f0' }}>
-          <div style={sectionTitle}>Recent Account Signups</div>
+          <div style={sectionTitle}>Users ({userRows.length})</div>
         </div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={th}>User ID</th>
                 <th style={th}>Email</th>
                 <th style={th}>Tier</th>
                 <th style={th}>Trial ends</th>
+                <th style={th}>Founding</th>
+                <th style={th}>Markets</th>
+                <th style={th}>Last login</th>
                 <th style={th}>Created</th>
               </tr>
             </thead>
             <tbody>
-              {recentTiers.length === 0 ? (
-                <tr><td colSpan={5} style={{ ...td, textAlign: 'center', color: '#94a3b8' }}>No data</td></tr>
-              ) : recentTiers.map((t, i) => (
-                <tr key={i}>
-                  <td style={td} title={t.user_id}>{t.user_id.slice(0, 12)}...</td>
-                  <td style={td}>{emailMap[t.user_id] || '—'}</td>
-                  <td style={td}>{t.tier}</td>
+              {userRows.length === 0 ? (
+                <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#94a3b8' }}>No data</td></tr>
+              ) : userRows.map(t => (
+                <tr key={t.user_id}>
+                  <td style={td} title={t.user_id}>{emailMap[t.user_id] || `${t.user_id.slice(0, 12)}...`}</td>
+                  <td style={td}>{EFFECTIVE_LABELS[effectiveTier(t, now)]}</td>
                   <td style={td}>{t.trial_ends_at ? new Date(t.trial_ends_at).toLocaleDateString() : '—'}</td>
+                  <td style={td}>{t.founding_member ? 'yes' : '—'}</td>
+                  <td style={td}>{marketCountByUser[t.user_id] || 0}</td>
+                  <td style={td}>{t.last_login_at ? new Date(t.last_login_at).toLocaleString() : '—'}</td>
                   <td style={td}>{t.created_at ? new Date(t.created_at).toLocaleDateString() : '—'}</td>
                 </tr>
               ))}

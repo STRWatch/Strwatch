@@ -1,7 +1,38 @@
 import { UserButton } from '@clerk/nextjs'
+import { auth } from '@clerk/nextjs/server'
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase/server'
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+const LOGIN_TOUCH_INTERVAL_MS = 60 * 60 * 1000
+
+/**
+ * Records last_login_at on user_tiers, at most once per hour per user.
+ * Reads the current value and only writes when it is null or older than 1h.
+ * Never throws: a failure here must not break the dashboard.
+ */
+async function touchLastLogin(userId: string): Promise<void> {
+  try {
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('user_tiers')
+      .select('last_login_at')
+      .eq('user_id', userId)
+      .maybeSingle()
+    const last = data?.last_login_at ? new Date(data.last_login_at).getTime() : null
+    const now = Date.now()
+    if (last !== null && now - last < LOGIN_TOUCH_INTERVAL_MS) return
+    await supabase
+      .from('user_tiers')
+      .update({ last_login_at: new Date(now).toISOString() })
+      .eq('user_id', userId)
+  } catch (e) {
+    console.error('touchLastLogin error:', e)
+  }
+}
+
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { userId } = await auth()
+  if (userId) await touchLastLogin(userId)
   return (
     <div style={{minHeight:'100vh', background:'#f7f9f5', display:'flex', flexDirection:'column'}}>
       <nav style={{
