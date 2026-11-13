@@ -140,10 +140,12 @@ def _fetch_with_retry(url: str, timeout: int = REQUEST_TIMEOUT, stream: bool = F
 
 def _fetch_via_proxy(url: str, timeout: int = REQUEST_TIMEOUT) -> Optional[requests.Response]:
     """Fetch via Vercel serverless proxy (for .gov sites blocking datacenter IPs)."""
-    proxy_url = f"{PROXY_BASE}?url={quote_plus(url)}&key={PROXY_SECRET}"
+    # The proxy accepts the shared secret in a header only (never the query string,
+    # which would land in access logs). See api/proxy/fetch.js.
+    proxy_url = f"{PROXY_BASE}?url={quote_plus(url)}"
     try:
         log.info("Trying Vercel proxy for %s", url)
-        resp = requests.get(proxy_url, timeout=timeout)
+        resp = requests.get(proxy_url, headers={"x-proxy-secret": PROXY_SECRET}, timeout=timeout)
         resp.raise_for_status()
         log.info("Proxy success for %s (%d bytes)", url, len(resp.content))
         return resp
