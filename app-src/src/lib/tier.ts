@@ -16,8 +16,9 @@ export type EffectiveTier = {
 
 /**
  * Bootstraps a 45-day Pro trial row for first-time users (atomic: upsert with
- * ignoreDuplicates so concurrent first loads cannot double-insert), lazily
- * downgrades an expired trial to 'free', and returns the effective tier.
+ * ignoreDuplicates so concurrent first loads cannot double-insert) and returns
+ * the effective tier. An expired, unpaid trial reads as 'free' here; the
+ * stored row is downgraded by the daily /api/cron/tiers job.
  *
  * Single source of truth for tier decisions on the server — pages, server
  * actions and API routes must all go through this.
@@ -52,14 +53,9 @@ export async function getEffectiveTier(userId: string): Promise<EffectiveTier> {
   const isTrialActive = rawTier === 'pro' && trialEndsAt !== null && trialEndsAt > now
   const isTrialExpired = rawTier === 'pro' && trialEndsAt !== null && trialEndsAt <= now
 
-  if (isTrialExpired) {
-    const { error } = await supabase
-      .from('user_tiers')
-      .update({ tier: 'free', updated_at: now.toISOString() })
-      .eq('user_id', userId)
-    if (error) console.error('getEffectiveTier downgrade error:', error)
-  }
-
+  // No write here: the daily /api/cron/tiers job persists the downgrade.
+  // Between expiry and the next cron run the row still says 'pro', so we
+  // compute the effective tier instead of trusting the stored one.
   const tier: Tier = isTrialExpired ? 'free' : rawTier
   const isAgency = tier === 'agency'
   const isPaid = (tier === 'pro' && !isTrialActive) || isAgency

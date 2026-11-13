@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid city' }, { status: 400 })
   }
 
-  // Check tier — paid, agency, or an active trial. Expired trials are downgraded by the helper.
+  // Check tier — paid, agency, or an active trial. Expired trials read as free via the helper.
   const supabase = createClient()
   const { isTrialActive, isPaid, isAgency } = await getEffectiveTier(userId)
   if (!(isAgency || isPaid || isTrialActive)) {
