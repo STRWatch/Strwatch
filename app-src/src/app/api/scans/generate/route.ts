@@ -3,8 +3,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getEffectiveTier } from '@/lib/tier'
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || ''
-const MODEL = 'claude-sonnet-4-5-20250929'
+// Same default as the scraper (alerts/checklist.py DEFAULT_MODEL); override
+// both with ANTHROPIC_MODEL to pin one alias. Read per request, not at import.
+const DEFAULT_MODEL = 'claude-sonnet-5-5'
+function anthropicModel(): string {
+  return process.env.ANTHROPIC_MODEL?.trim() || DEFAULT_MODEL
+}
 
 const BETA_MARKETS: Record<string, string> = {
   'Nashville, TN': `Nashville STR data from STRWatch scrapers:
@@ -152,7 +156,9 @@ Return this exact JSON structure:
   "disclaimer": "This report is for informational purposes only and does not constitute legal advice. Verify all details with local government before making investment decisions."
 }`
 
-  if (!ANTHROPIC_API_KEY) {
+  // Read lazily so a missing key fails the request, not the build.
+  const apiKey = process.env.ANTHROPIC_API_KEY || ''
+  if (!apiKey) {
     return NextResponse.json({ error: 'API not configured' }, { status: 500 })
   }
 
@@ -161,11 +167,11 @@ Return this exact JSON structure:
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
+        'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: MODEL,
+        model: anthropicModel(),
         max_tokens: 3000,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],

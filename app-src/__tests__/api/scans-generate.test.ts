@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const { state } = vi.hoisted(() => ({
-  // The route reads ANTHROPIC_API_KEY at module load; set it before the import.
-  _env: (process.env.ANTHROPIC_API_KEY = 'sk-ant-test'),
   state: { userId: 'user_1' as string | null, todayCount: 0, tier: { isTrialActive: true, isPaid: false, isAgency: false } },
 }))
 
@@ -41,6 +39,8 @@ function request(city = 'Austin, TX') {
 const fetchSpy = vi.fn()
 
 beforeEach(() => {
+  process.env.ANTHROPIC_API_KEY = 'sk-ant-test'
+  delete process.env.ANTHROPIC_MODEL
   state.userId = 'user_1'
   state.todayCount = 0
   state.tier = { isTrialActive: true, isPaid: false, isAgency: false }
@@ -70,6 +70,25 @@ describe('POST /api/scans/generate daily cap', () => {
     const res = await POST(request())
     expect(res.status).not.toBe(429)
     expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('reads ANTHROPIC_API_KEY and ANTHROPIC_MODEL per request, defaulting to claude-sonnet-5-5', async () => {
+    fetchSpy.mockResolvedValue({ ok: false, status: 500, text: async () => 'stub' })
+    await POST(request())
+    let [, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    expect((init.headers as Record<string, string>)['x-api-key']).toBe('sk-ant-test')
+    expect(JSON.parse(init.body as string).model).toBe('claude-sonnet-5-5')
+
+    process.env.ANTHROPIC_MODEL = 'claude-pinned'
+    process.env.ANTHROPIC_API_KEY = 'sk-ant-rotated'
+    await POST(request())
+    ;[, init] = fetchSpy.mock.calls[1] as [string, RequestInit]
+    expect((init.headers as Record<string, string>)['x-api-key']).toBe('sk-ant-rotated')
+    expect(JSON.parse(init.body as string).model).toBe('claude-pinned')
+
+    delete process.env.ANTHROPIC_API_KEY
+    expect((await POST(request())).status).toBe(500)
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
   })
 
   it('401 when unauthenticated', async () => {
