@@ -15,34 +15,34 @@ type StripeEnv = {
  * load) so a misconfigured deployment fails on the request with a clear message
  * instead of crashing at import with a cryptic 500.
  */
-function getStripeEnv(): StripeEnv {
-  const required = ['STRIPE_SECRET_KEY', 'STRIPE_PRICE_PRO', 'STRIPE_PRICE_AGENCY', 'STRIPE_PRICE_FOUNDING'] as const
-  const values: Partial<Record<(typeof required)[number], string>> = {}
-  for (const name of required) {
-    const value = process.env[name]
-    if (!value) {
-      throw new Error(`Missing required environment variable: ${name}`)
-    }
-    values[name] = value
+function requireEnv(name: string): string {
+  const value = process.env[name]
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`)
   }
-  return {
-    secretKey: values.STRIPE_SECRET_KEY!,
-    priceIds: {
-      pro:      values.STRIPE_PRICE_PRO!,
-      agency:   values.STRIPE_PRICE_AGENCY!,
-      // Founding-member Pro ($19/mo locked). Grants tier 'pro'; gated on user_tiers.founding_member.
-      founding: values.STRIPE_PRICE_FOUNDING!,
-    },
+  return value
+}
+
+function getStripeEnv(tier: string): StripeEnv {
+  const priceIds: Record<string, string> = {
+    pro:    requireEnv('STRIPE_PRICE_PRO'),
+    agency: requireEnv('STRIPE_PRICE_AGENCY'),
   }
+  // Founding-member Pro ($19/mo locked). Grants tier 'pro'; gated on
+  // user_tiers.founding_member. Only required when actually requested so a
+  // deployment without the founding price still sells Pro/Agency.
+  if (tier === 'founding') priceIds.founding = requireEnv('STRIPE_PRICE_FOUNDING')
+  return { secretKey: requireEnv('STRIPE_SECRET_KEY'), priceIds }
 }
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { secretKey, priceIds } = getStripeEnv()
-  const stripe = new Stripe(secretKey, { apiVersion: '2026-02-25.clover' })
   const { tier } = await req.json()
-  const priceId = typeof tier === 'string' ? priceIds[tier] : undefined
+  if (typeof tier !== 'string') return NextResponse.json({ error: 'Invalid tier' }, { status: 400 })
+  const { secretKey, priceIds } = getStripeEnv(tier)
+  const stripe = new Stripe(secretKey, { apiVersion: '2026-02-25.clover' })
+  const priceId = priceIds[tier]
   if (!priceId) return NextResponse.json({ error: 'Invalid tier' }, { status: 400 })
 
   const isFounding = tier === 'founding'
