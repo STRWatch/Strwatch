@@ -1,19 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
-import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
-
-/**
- * Stripe client, read inside the handler rather than at module load so
- * `next build` can evaluate this module without STRIPE_SECRET_KEY.
- */
-function getStripe(): Stripe {
-  const secretKey = process.env.STRIPE_SECRET_KEY
-  if (!secretKey) {
-    throw new Error('Missing required environment variable: STRIPE_SECRET_KEY')
-  }
-  return new Stripe(secretKey, { apiVersion: '2026-02-25.clover' })
-}
+import { getStripe } from '@/lib/stripe'
 
 export async function POST() {
   const { userId } = await auth()
