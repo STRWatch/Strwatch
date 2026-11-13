@@ -44,12 +44,19 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: 'Missing url parameter' });
   }
 
-  let hostname;
+  let parsed;
   try {
-    hostname = new URL(targetUrl).hostname;
+    parsed = new URL(targetUrl);
   } catch {
     return res.status(400).json({ error: 'Invalid URL' });
   }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return res.status(400).json({ error: 'Only http(s) URLs are allowed' });
+  }
+  if (parsed.port !== '') {
+    return res.status(400).json({ error: 'Explicit ports are not allowed' });
+  }
+  const hostname = parsed.hostname;
 
   if (!ALLOWED_DOMAINS.includes(hostname)) {
     return res.status(403).json({ error: `Domain not allowed: ${hostname}` });
@@ -63,7 +70,13 @@ module.exports = async (req, res) => {
         'Accept-Language': 'en-US,en;q=0.9',
       },
       signal: AbortSignal.timeout(30000),
+      redirect: 'manual',
     });
+
+    if (response.status >= 300 && response.status < 400) {
+      console.error(`Proxy refused redirect for ${targetUrl}: ${response.status} -> ${response.headers.get('location') || '?'}`);
+      return res.status(502).json({ error: 'Upstream redirected' });
+    }
 
     if (!response.ok) {
       return res.status(response.status).json({
