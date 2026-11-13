@@ -141,3 +141,39 @@ class TestRecordScrapeRun:
         import run
         assert run.record_scrape_run("x", None, datetime.now(timezone.utc), "ok") is False
         mock_post.assert_not_called()
+
+
+class TestExitCode:
+    def test_clean_run_with_errors_zero_exits_0(self):
+        # Regression: the old `"error" not in str(v)` check matched the
+        # `errors: 0` key and exited 1 on every run.
+        import run
+        results = {
+            "denver": {"processed": 100, "new": 0, "revoked": 0, "errors": 0, "stats": {}},
+            "nashville": {"checked": 10, "new_bills": 0, "errors": 0},
+            "charleston": {"checked": 3, "changes": 1},
+            "legistar_multi": {"cities_scanned": 3, "total_new_bills": 0, "total_errors": 0},
+            "reminders": {"checked": 2, "reminders_sent": 0},
+        }
+        assert run.exit_code(results) == 0
+
+    def test_errors_gt_zero_exits_1(self):
+        import run
+        assert run.exit_code({"ok": {"errors": 0}, "bad": {"checked": 5, "errors": 2}}) == 1
+
+    def test_total_errors_gt_zero_exits_1(self):
+        import run
+        assert run.exit_code({"legistar_multi": {"total_new_bills": 0, "total_errors": 1}}) == 1
+
+    def test_exception_result_exits_1(self):
+        import run
+        assert run.exit_code({"ok": {"changes": 0}, "boom": {"error": "ValueError: x"}}) == 1
+
+    def test_empty_results_exits_0(self):
+        import run
+        assert run.exit_code({}) == 0
+
+    def test_errors_as_list_counts(self):
+        import run
+        assert run.exit_code({"x": {"errors": ["timeout"]}}) == 1
+        assert run.exit_code({"x": {"errors": []}}) == 0

@@ -334,8 +334,17 @@ def run_all(args: List[str]) -> dict:
     return results
 
 
+def exit_code(results: dict) -> int:
+    """1 if any step raised ({"error": ...}) or reported errors > 0, else 0.
+
+    (The old check was `"error" not in str(v)`, which matched the harmless
+    `errors: 0` key and so exited 1 on every run.)
+    """
+    return 1 if any(result_error_count(v) > 0 for v in results.values()) else 0
+
+
 if __name__ == "__main__":
     args = sys.argv[1:]
     banner(f"STRWatch Scraper — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
     results = run_all(args)
-    sys.exit(0 if all("error" not in str(v) for v in results.values()) else 1)
+    sys.exit(exit_code(results))
