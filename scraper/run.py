@@ -178,6 +178,11 @@ def run_step(results: dict, key: str, title: str, module_name: str, label: str,
         result = call(module)
         results[key] = result
         status, changed = classify_result(result)
+        n_err = result_error_count(result)
+        if n_err > 0:
+            # Partial failure inside the scraper (e.g. some pages timed out)
+            # is an error row even if other pages changed.
+            status, error = "error", f"{n_err} source errors"
     except Exception as e:
         log.error("%s failed: %s", label, e, exc_info=True)
         results[key] = {"error": str(e)}
@@ -223,8 +228,12 @@ def run_all(args: List[str]) -> dict:
     if "--nashville-only" not in args and "--austin-only" not in args and "--pages-only" not in args and "--indianapolis-only" not in args:
         if "--dump-fields" in args:
             banner("Denver SODA API")
-            from scrapers import denver_soda
-            denver_soda.dump_fields()
+            try:
+                from scrapers import denver_soda
+                denver_soda.dump_fields()
+            except Exception as e:
+                log.error("Denver scraper failed: %s", e, exc_info=True)
+                results["denver"] = {"error": str(e)}
             return {}
         run_step(results, "denver", "Denver SODA API", "scrapers.denver_soda", "Denver scraper",
                  call=lambda m: m.run(full_sync=full_sync))

@@ -177,3 +177,39 @@ class TestExitCode:
         import run
         assert run.exit_code({"x": {"errors": ["timeout"]}}) == 1
         assert run.exit_code({"x": {"errors": []}}) == 0
+
+
+class TestRunStepSourceErrors:
+    @patch('run.record_scrape_run')
+    def test_source_errors_record_error_even_with_changes(self, mock_rec):
+        import run
+        fake = _fake_module(lambda: {"checked": 5, "changes": 2, "errors": 3})
+        results = {}
+        with patch('run.importlib.import_module', return_value=fake):
+            run.run_step(results, "state_pages", "State", "scrapers.state_pages_web", "State pages scraper")
+        assert results["state_pages"]["changes"] == 2  # result untouched
+        args = mock_rec.call_args[0]
+        assert args[3] == "error"
+        assert args[4] == 2  # pages_changed still recorded
+        assert args[5] == "3 source errors"
+
+    @patch('run.record_scrape_run')
+    def test_zero_errors_stays_changed(self, mock_rec):
+        import run
+        fake = _fake_module(lambda: {"checked": 5, "changes": 2, "errors": 0})
+        with patch('run.importlib.import_module', return_value=fake):
+            run.run_step({}, "boston", "Boston", "scrapers.boston_web", "Boston scraper")
+        assert mock_rec.call_args[0][3] == "changed"
+        assert mock_rec.call_args[0][5] is None
+
+
+class TestDumpFields:
+    @patch('run.store')
+    def test_dump_fields_exception_is_caught(self, _store):
+        import run
+        fake = types.ModuleType("scrapers.denver_soda")
+        fake.dump_fields = MagicMock(side_effect=RuntimeError("SODA down"))
+        with patch.dict(sys.modules, {"scrapers.denver_soda": fake}):
+            result = run.run_all(["--dump-fields"])
+        assert result == {}
+        fake.dump_fields.assert_called_once()
