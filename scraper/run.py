@@ -17,10 +17,13 @@ Flags:
   --reminders-only  Only run deadline reminders
 """
 
-from typing import List
+from typing import Callable, List, Optional, Tuple
+import importlib
+import os
 import sys
 import logging
 import time
+import traceback
 from datetime import datetime, timezone
 
 # Configure logging before imports
@@ -41,6 +44,149 @@ def banner(text: str):
     log.info("=" * width)
     log.info(f"  {text}")
     log.info("=" * width)
+
+
+# ── scrape_runs log ───────────────────────────────────────────────────────────
+# One row per scraper/source per run (supabase/migrations/*_scrape_runs.sql).
+# Writing this row must never abort the run: every failure is logged and
+# swallowed.
+
+SOURCE_CITY = {
+    "denver": "Denver, CO",
+    "nashville": "Nashville, TN",
+    "austin": "Austin, TX",
+    "austin_soda": "Austin, TX",
+    "scottsdale": "Scottsdale, AZ",
+    "palm_springs": "Palm Springs, CA",
+    "nola_legistar": "New Orleans, LA",
+    "nola_soda": "New Orleans, LA",
+    "sandiego": "San Diego, CA",
+    "charleston": "Charleston, SC",
+    "savannah": "Savannah, GA",
+    "sf": "San Francisco, CA",
+    "miamibeach": "Miami Beach, FL",
+    "gatlinburg": "Gatlinburg, TN",
+    "asheville": "Asheville, NC",
+    "keywest": "Key West, FL",
+    "sedona": "Sedona, AZ",
+    "parkcity": "Park City, UT",
+    "breckenridge": "Breckenridge, CO",
+    "bigbear": "Big Bear, CA",
+    "hawaii": "Hawaii",
+    "outerbanks": "Outer Banks, NC",
+    "nyc": "New York City, NY",
+    "la": "Los Angeles, CA",
+    "orlando": "Orlando, FL",
+    "lasvegas": "Las Vegas, NV",
+    "boston": "Boston, MA",
+    "portland": "Portland, OR",
+    "destin": "Destin, FL",
+    "maui": "Maui, HI",
+    "tybee": "Tybee Island, GA",
+    "laketahoe": "Lake Tahoe, CA",
+    "indianapolis": "Indianapolis, IN",
+    # multi-market sources: city left NULL
+    "state_pages": None,
+    "county_pages": None,
+    "legistar_multi": None,
+}
+
+# Result-dict keys that mean "this run found something new".
+CHANGE_KEYS = ("changes", "page_changes", "new", "revoked", "new_bills",
+               "new_agenda_items", "new_legislation", "total_new_bills")
+ERROR_KEYS = ("errors", "total_errors")
+
+
+def _as_int(value) -> int:
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, (int, float)):
+        return int(value)
+    if isinstance(value, (list, tuple, set, dict)):
+        return len(value)
+    return 0
+
+
+def classify_result(result) -> Tuple[str, int]:
+    """Map a scraper's result dict to (status, pages_changed)."""
+    if not isinstance(result, dict):
+        return "ok", 0
+    changed = sum(_as_int(result.get(k, 0)) for k in CHANGE_KEYS)
+    return ("changed" if changed > 0 else "ok"), changed
+
+
+def result_error_count(result) -> int:
+    if not isinstance(result, dict):
+        return 0
+    if "error" in result and result.get("error"):
+        return 1
+    return sum(_as_int(result.get(k, 0)) for k in ERROR_KEYS)
+
+
+def record_scrape_run(source: str, city: Optional[str], started_at: datetime,
+                      status: str, pages_changed: int = 0,
+                      error: Optional[str] = None) -> bool:
+    """Insert one scrape_runs row. Never raises."""
+    try:
+        url = os.getenv("SUPABASE_URL", "")
+        key = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+        if not url or not key:
+            log.debug("scrape_runs: SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY not set — skipping")
+            return False
+        import requests
+        payload = {
+            "source": source,
+            "city": city,
+            "started_at": started_at.isoformat(),
+            "finished_at": datetime.now(timezone.utc).isoformat(),
+            "status": status,
+            "pages_changed": int(pages_changed or 0),
+            "error": (error[:500] if error else None),
+        }
+        resp = requests.post(
+            f"{url}/rest/v1/scrape_runs",
+            headers={
+                "apikey": key,
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+                "Prefer": "return=minimal",
+            },
+            json=payload,
+            timeout=10,
+        )
+        if not resp.ok:
+            log.warning("scrape_runs insert failed for %s: %s %s", source, resp.status_code, resp.text[:200])
+            return False
+        return True
+    except Exception as e:  # noqa: BLE001 — must never abort the run
+        log.warning("scrape_runs insert error for %s: %s", source, e)
+        return False
+
+
+def run_step(results: dict, key: str, title: str, module_name: str, label: str,
+             call: Callable = lambda m: m.run()) -> None:
+    """Run one scraper, store its result under results[key], log a scrape_runs row.
+
+    Behaviour matches the old inline try/except blocks: exceptions are logged
+    with traceback and recorded as {"error": str(e)}.
+    """
+    banner(title)
+    started = datetime.now(timezone.utc)
+    status, changed, error = "ok", 0, None
+    try:
+        module = importlib.import_module(module_name)
+        result = call(module)
+        results[key] = result
+        status, changed = classify_result(result)
+    except Exception as e:
+        log.error("%s failed: %s", label, e, exc_info=True)
+        results[key] = {"error": str(e)}
+        status, changed, error = "error", 0, traceback.format_exc()[:500]
+
+    try:
+        record_scrape_run(key, SOURCE_CITY.get(key), started, status, changed, error)
+    except Exception as e:  # noqa: BLE001 — logging must never abort the run
+        log.warning("scrape_runs write failed for %s: %s", key, e)
 
 
 def run_all(args: List[str]) -> dict:
@@ -75,280 +221,85 @@ def run_all(args: List[str]) -> dict:
 
     # ── Denver SODA ──
     if "--nashville-only" not in args and "--austin-only" not in args and "--pages-only" not in args and "--indianapolis-only" not in args:
-        banner("Denver SODA API")
-        try:
+        if "--dump-fields" in args:
+            banner("Denver SODA API")
             from scrapers import denver_soda
-            if "--dump-fields" in args:
-                denver_soda.dump_fields()
-                return {}
-            results["denver"] = denver_soda.run(full_sync=full_sync)
-        except Exception as e:
-            log.error("Denver scraper failed: %s", e, exc_info=True)
-            results["denver"] = {"error": str(e)}
+            denver_soda.dump_fields()
+            return {}
+        run_step(results, "denver", "Denver SODA API", "scrapers.denver_soda", "Denver scraper",
+                 call=lambda m: m.run(full_sync=full_sync))
 
     # ── Nashville Legistar ──
     if "--denver-only" not in args and "--austin-only" not in args and "--pages-only" not in args and "--indianapolis-only" not in args:
-        banner("Nashville Legistar")
-        try:
-            from scrapers import nashville_legistar
-            results["nashville"] = nashville_legistar.run(days_back=14)
-        except Exception as e:
-            log.error("Nashville scraper failed: %s", e, exc_info=True)
-            results["nashville"] = {"error": str(e)}
+        run_step(results, "nashville", "Nashville Legistar", "scrapers.nashville_legistar", "Nashville scraper", call=lambda m: m.run(days_back=14))
 
     # ── Austin + all other city scrapers ──
     if "--denver-only" not in args and "--nashville-only" not in args and "--pages-only" not in args and "--indianapolis-only" not in args:
-        banner("Austin Web Scraper")
-        try:
-            from scrapers import austin_web
-            results["austin"] = austin_web.run()
-        except Exception as e:
-            log.error("Austin scraper failed: %s", e, exc_info=True)
-            results["austin"] = {"error": str(e)}
+        run_step(results, "austin", "Austin Web Scraper", "scrapers.austin_web", "Austin scraper")
 
-        banner("Scottsdale ArcGIS Licenses")
-        try:
-            from scrapers import scottsdale_arcgis
-            results["scottsdale"] = scottsdale_arcgis.run()
-        except Exception as e:
-            log.error("Scottsdale scraper failed: %s", e, exc_info=True)
-            results["scottsdale"] = {"error": str(e)}
+        run_step(results, "scottsdale", "Scottsdale ArcGIS Licenses", "scrapers.scottsdale_arcgis", "Scottsdale scraper")
 
-        banner("Palm Springs Web Watcher")
-        try:
-            from scrapers import palm_springs_web
-            results["palm_springs"] = palm_springs_web.run()
-        except Exception as e:
-            log.error("Palm Springs scraper failed: %s", e, exc_info=True)
-            results["palm_springs"] = {"error": str(e)}
+        run_step(results, "palm_springs", "Palm Springs Web Watcher", "scrapers.palm_springs_web", "Palm Springs scraper")
 
-        banner("Austin SODA Licenses")
-        try:
-            from scrapers import austin_soda
-            results["austin_soda"] = austin_soda.run()
-        except Exception as e:
-            log.error("Austin SODA scraper failed: %s", e, exc_info=True)
-            results["austin_soda"] = {"error": str(e)}
+        run_step(results, "austin_soda", "Austin SODA Licenses", "scrapers.austin_soda", "Austin SODA scraper")
 
-        banner("New Orleans Legistar")
-        try:
-            from scrapers import nola_legistar
-            results["nola_legistar"] = nola_legistar.run(days_back=14)
-        except Exception as e:
-            log.error("NOLA Legistar scraper failed: %s", e, exc_info=True)
-            results["nola_legistar"] = {"error": str(e)}
+        run_step(results, "nola_legistar", "New Orleans Legistar", "scrapers.nola_legistar", "NOLA Legistar scraper", call=lambda m: m.run(days_back=14))
 
-        banner("New Orleans SODA Licenses")
-        try:
-            from scrapers import nola_soda
-            results["nola_soda"] = nola_soda.run(full_sync=full_sync)
-        except Exception as e:
-            log.error("NOLA SODA scraper failed: %s", e, exc_info=True)
-            results["nola_soda"] = {"error": str(e)}
+        run_step(results, "nola_soda", "New Orleans SODA Licenses", "scrapers.nola_soda", "NOLA SODA scraper", call=lambda m: m.run(full_sync=full_sync))
 
-        banner("San Diego STRO Page Watcher")
-        try:
-            from scrapers import sandiego_web
-            results["sandiego"] = sandiego_web.run()
-        except Exception as e:
-            log.error("San Diego scraper failed: %s", e, exc_info=True)
-            results["sandiego"] = {"error": str(e)}
+        run_step(results, "sandiego", "San Diego STRO Page Watcher", "scrapers.sandiego_web", "San Diego scraper")
 
-        banner("Charleston SC Page Watcher")
-        try:
-            from scrapers import charleston_web
-            results["charleston"] = charleston_web.run()
-        except Exception as e:
-            log.error("Charleston scraper failed: %s", e, exc_info=True)
-            results["charleston"] = {"error": str(e)}
+        run_step(results, "charleston", "Charleston SC Page Watcher", "scrapers.charleston_web", "Charleston scraper")
 
-        banner("Savannah GA Page Watcher")
-        try:
-            from scrapers import savannah_web
-            results["savannah"] = savannah_web.run()
-        except Exception as e:
-            log.error("Savannah scraper failed: %s", e, exc_info=True)
-            results["savannah"] = {"error": str(e)}
+        run_step(results, "savannah", "Savannah GA Page Watcher", "scrapers.savannah_web", "Savannah scraper")
 
-        banner("San Francisco Page Watcher")
-        try:
-            from scrapers import sf_web
-            results["sf"] = sf_web.run()
-        except Exception as e:
-            log.error("SF scraper failed: %s", e, exc_info=True)
-            results["sf"] = {"error": str(e)}
+        run_step(results, "sf", "San Francisco Page Watcher", "scrapers.sf_web", "SF scraper")
 
-        banner("Miami Beach Page Watcher")
-        try:
-            from scrapers import miamibeach_web
-            results["miamibeach"] = miamibeach_web.run()
-        except Exception as e:
-            log.error("Miami Beach scraper failed: %s", e, exc_info=True)
-            results["miamibeach"] = {"error": str(e)}
+        run_step(results, "miamibeach", "Miami Beach Page Watcher", "scrapers.miamibeach_web", "Miami Beach scraper")
 
-        banner("Gatlinburg TN Page Watcher")
-        try:
-            from scrapers import gatlinburg_web
-            results["gatlinburg"] = gatlinburg_web.run()
-        except Exception as e:
-            log.error("Gatlinburg scraper failed: %s", e, exc_info=True)
-            results["gatlinburg"] = {"error": str(e)}
+        run_step(results, "gatlinburg", "Gatlinburg TN Page Watcher", "scrapers.gatlinburg_web", "Gatlinburg scraper")
 
-        banner("Asheville NC Page Watcher")
-        try:
-            from scrapers import asheville_web
-            results["asheville"] = asheville_web.run()
-        except Exception as e:
-            log.error("Asheville scraper failed: %s", e, exc_info=True)
-            results["asheville"] = {"error": str(e)}
+        run_step(results, "asheville", "Asheville NC Page Watcher", "scrapers.asheville_web", "Asheville scraper")
 
-        banner("Key West FL Page Watcher")
-        try:
-            from scrapers import keywest_web
-            results["keywest"] = keywest_web.run()
-        except Exception as e:
-            log.error("Key West scraper failed: %s", e, exc_info=True)
-            results["keywest"] = {"error": str(e)}
+        run_step(results, "keywest", "Key West FL Page Watcher", "scrapers.keywest_web", "Key West scraper")
 
-        banner("Sedona AZ Page Watcher")
-        try:
-            from scrapers import sedona_web
-            results["sedona"] = sedona_web.run()
-        except Exception as e:
-            log.error("Sedona scraper failed: %s", e, exc_info=True)
-            results["sedona"] = {"error": str(e)}
+        run_step(results, "sedona", "Sedona AZ Page Watcher", "scrapers.sedona_web", "Sedona scraper")
 
-        banner("Park City UT Page Watcher")
-        try:
-            from scrapers import parkcity_web
-            results["parkcity"] = parkcity_web.run()
-        except Exception as e:
-            log.error("Park City scraper failed: %s", e, exc_info=True)
-            results["parkcity"] = {"error": str(e)}
+        run_step(results, "parkcity", "Park City UT Page Watcher", "scrapers.parkcity_web", "Park City scraper")
 
-        banner("Breckenridge CO Page Watcher")
-        try:
-            from scrapers import breckenridge_web
-            results["breckenridge"] = breckenridge_web.run()
-        except Exception as e:
-            log.error("Breckenridge scraper failed: %s", e, exc_info=True)
-            results["breckenridge"] = {"error": str(e)}
+        run_step(results, "breckenridge", "Breckenridge CO Page Watcher", "scrapers.breckenridge_web", "Breckenridge scraper")
 
-        banner("Big Bear CA Page Watcher")
-        try:
-            from scrapers import bigbear_web
-            results["bigbear"] = bigbear_web.run()
-        except Exception as e:
-            log.error("Big Bear scraper failed: %s", e, exc_info=True)
-            results["bigbear"] = {"error": str(e)}
+        run_step(results, "bigbear", "Big Bear CA Page Watcher", "scrapers.bigbear_web", "Big Bear scraper")
 
-        banner("Hawaii Page Watcher")
-        try:
-            from scrapers import hawaii_web
-            results["hawaii"] = hawaii_web.run()
-        except Exception as e:
-            log.error("Hawaii scraper failed: %s", e, exc_info=True)
-            results["hawaii"] = {"error": str(e)}
+        run_step(results, "hawaii", "Hawaii Page Watcher", "scrapers.hawaii_web", "Hawaii scraper")
 
-        banner("Outer Banks NC Page Watcher")
-        try:
-            from scrapers import outerbanks_web
-            results["outerbanks"] = outerbanks_web.run()
-        except Exception as e:
-            log.error("Outer Banks scraper failed: %s", e, exc_info=True)
-            results["outerbanks"] = {"error": str(e)}
+        run_step(results, "outerbanks", "Outer Banks NC Page Watcher", "scrapers.outerbanks_web", "Outer Banks scraper")
 
         # ── Markets #21-30 (added March 2026) ──
 
-        banner("New York City NY Page Watcher")
-        try:
-            from scrapers import nyc_web
-            results["nyc"] = nyc_web.run()
-        except Exception as e:
-            log.error("NYC scraper failed: %s", e, exc_info=True)
-            results["nyc"] = {"error": str(e)}
+        run_step(results, "nyc", "New York City NY Page Watcher", "scrapers.nyc_web", "NYC scraper")
 
-        banner("Los Angeles CA Page Watcher")
-        try:
-            from scrapers import la_web
-            results["la"] = la_web.run()
-        except Exception as e:
-            log.error("LA scraper failed: %s", e, exc_info=True)
-            results["la"] = {"error": str(e)}
+        run_step(results, "la", "Los Angeles CA Page Watcher", "scrapers.la_web", "LA scraper")
 
-        banner("Orlando FL Page Watcher")
-        try:
-            from scrapers import orlando_web
-            results["orlando"] = orlando_web.run()
-        except Exception as e:
-            log.error("Orlando scraper failed: %s", e, exc_info=True)
-            results["orlando"] = {"error": str(e)}
+        run_step(results, "orlando", "Orlando FL Page Watcher", "scrapers.orlando_web", "Orlando scraper")
 
-        banner("Las Vegas NV Page Watcher")
-        try:
-            from scrapers import lasvegas_web
-            results["lasvegas"] = lasvegas_web.run()
-        except Exception as e:
-            log.error("Las Vegas scraper failed: %s", e, exc_info=True)
-            results["lasvegas"] = {"error": str(e)}
+        run_step(results, "lasvegas", "Las Vegas NV Page Watcher", "scrapers.lasvegas_web", "Las Vegas scraper")
 
-        banner("Boston MA Page Watcher")
-        try:
-            from scrapers import boston_web
-            results["boston"] = boston_web.run()
-        except Exception as e:
-            log.error("Boston scraper failed: %s", e, exc_info=True)
-            results["boston"] = {"error": str(e)}
+        run_step(results, "boston", "Boston MA Page Watcher", "scrapers.boston_web", "Boston scraper")
 
-        banner("Portland OR Page Watcher")
-        try:
-            from scrapers import portland_web
-            results["portland"] = portland_web.run()
-        except Exception as e:
-            log.error("Portland scraper failed: %s", e, exc_info=True)
-            results["portland"] = {"error": str(e)}
+        run_step(results, "portland", "Portland OR Page Watcher", "scrapers.portland_web", "Portland scraper")
 
-        banner("Destin/30A FL Page Watcher")
-        try:
-            from scrapers import destin_web
-            results["destin"] = destin_web.run()
-        except Exception as e:
-            log.error("Destin scraper failed: %s", e, exc_info=True)
-            results["destin"] = {"error": str(e)}
+        run_step(results, "destin", "Destin/30A FL Page Watcher", "scrapers.destin_web", "Destin scraper")
 
-        banner("Maui HI Page Watcher")
-        try:
-            from scrapers import maui_web
-            results["maui"] = maui_web.run()
-        except Exception as e:
-            log.error("Maui scraper failed: %s", e, exc_info=True)
-            results["maui"] = {"error": str(e)}
+        run_step(results, "maui", "Maui HI Page Watcher", "scrapers.maui_web", "Maui scraper")
 
-        banner("Tybee Island GA Page Watcher")
-        try:
-            from scrapers import tybee_web
-            results["tybee"] = tybee_web.run()
-        except Exception as e:
-            log.error("Tybee Island scraper failed: %s", e, exc_info=True)
-            results["tybee"] = {"error": str(e)}
+        run_step(results, "tybee", "Tybee Island GA Page Watcher", "scrapers.tybee_web", "Tybee Island scraper")
 
-        banner("Lake Tahoe CA Page Watcher")
-        try:
-            from scrapers import laketahoe_web
-            results["laketahoe"] = laketahoe_web.run()
-        except Exception as e:
-            log.error("Lake Tahoe scraper failed: %s", e, exc_info=True)
-            results["laketahoe"] = {"error": str(e)}
+        run_step(results, "laketahoe", "Lake Tahoe CA Page Watcher", "scrapers.laketahoe_web", "Lake Tahoe scraper")
 
         # ── State-Level Pages (covers 20+ markets) ──
 
-        banner("State-Level Pages (FL, HI, TN, AZ, GA)")
-        try:
-            from scrapers import state_pages_web
-            results["state_pages"] = state_pages_web.run()
-        except Exception as e:
-            log.error("State pages scraper failed: %s", e, exc_info=True)
-            results["state_pages"] = {"error": str(e)}
+        run_step(results, "state_pages", "State-Level Pages (FL, HI, TN, AZ, GA)", "scrapers.state_pages_web", "State pages scraper")
 
     # ── Indianapolis ──
     if "--indianapolis-only" in args or (
@@ -357,31 +308,13 @@ def run_all(args: List[str]) -> dict:
         and "--austin-only" not in args
         and "--pages-only" not in args
     ):
-        banner("Indianapolis IN Page Watcher")
-        try:
-            from scrapers import indianapolis_web
-            results["indianapolis"] = indianapolis_web.run()
-        except Exception as e:
-            log.error("Indianapolis page watcher failed: %s", e, exc_info=True)
-            results["indianapolis"] = {"error": str(e)}
+        run_step(results, "indianapolis", "Indianapolis IN Page Watcher", "scrapers.indianapolis_web", "Indianapolis page watcher")
 
     # ── County-Level Pages (Davidson, Travis, El Dorado, Multnomah, Monroe, SB, Okaloosa, Chatham) ──
-    banner("County-Level Pages (8 counties)")
-    try:
-        from scrapers import county_pages_web
-        results["county_pages"] = county_pages_web.run()
-    except Exception as e:
-        log.error("County pages scraper failed: %s", e, exc_info=True)
-        results["county_pages"] = {"error": str(e)}
+    run_step(results, "county_pages", "County-Level Pages (8 counties)", "scrapers.county_pages_web", "County pages scraper")
 
     # ── Multi-City Legistar (Denver, SF, Boston) ──
-    banner("Multi-City Legistar (Denver, SF, Boston)")
-    try:
-        from scrapers import legistar_multi
-        results["legistar_multi"] = legistar_multi.run(days_back=14)
-    except Exception as e:
-        log.error("Multi-city Legistar scraper failed: %s", e, exc_info=True)
-        results["legistar_multi"] = {"error": str(e)}
+    run_step(results, "legistar_multi", "Multi-City Legistar (Denver, SF, Boston)", "scrapers.legistar_multi", "Multi-city Legistar scraper", call=lambda m: m.run(days_back=14))
 
     # ── Deadline Reminders (runs after all scrapers) ──
     banner("Deadline Reminders")
