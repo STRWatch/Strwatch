@@ -3,8 +3,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getEffectiveTier } from '@/lib/tier'
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || ''
-const MODEL = 'claude-sonnet-4-5-20250929'
+// Same default as the scraper (alerts/checklist.py DEFAULT_MODEL); override
+// both with ANTHROPIC_MODEL to pin one alias. Read per request, not at import.
+const DEFAULT_MODEL = 'claude-sonnet-5-5'
+function anthropicModel(): string {
+  return process.env.ANTHROPIC_MODEL?.trim() || DEFAULT_MODEL
+}
 
 const BETA_MARKETS: Record<string, string> = {
   'Nashville, TN': `Nashville STR data from STRWatch scrapers:
@@ -71,11 +75,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid city' }, { status: 400 })
   }
 
-  // Check tier — paid, agency, or an active trial. Expired trials are downgraded by the helper.
+  // Check tier — paid, agency, or an active trial. Expired trials read as free via the helper.
   const supabase = createClient()
   const { isTrialActive, isPaid, isAgency } = await getEffectiveTier(userId)
   if (!(isAgency || isPaid || isTrialActive)) {
     return NextResponse.json({ error: 'Upgrade to Pro for market scans' }, { status: 403 })
+  }
+
+  // Daily cap (UTC day): 50 for paid/agency, 10 for trialing users.
+  const dailyCap = isPaid || isAgency ? 50 : 10
+  const startOfDayUtc = new Date()
+  startOfDayUtc.setUTCHours(0, 0, 0, 0)
+  const { count: todayCount, error: countErr } = await supabase
+    .from('scans')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .gte('created_at', startOfDayUtc.toISOString())
+  if (countErr) {
+    console.error('Scan count error:', countErr)
+    return NextResponse.json({ error: 'Could not check scan quota' }, { status: 500 })
+  }
+  if ((todayCount ?? 0) >= dailyCap) {
+    return NextResponse.json(
+      { error: `Daily scan limit reached (${dailyCap} per day). Try again tomorrow.` },
+      { status: 429 }
+    )
   }
 
   // Check if this is a beta market (enriched data available)
@@ -132,7 +156,9 @@ Return this exact JSON structure:
   "disclaimer": "This report is for informational purposes only and does not constitute legal advice. Verify all details with local government before making investment decisions."
 }`
 
-  if (!ANTHROPIC_API_KEY) {
+  // Read lazily so a missing key fails the request, not the build.
+  const apiKey = process.env.ANTHROPIC_API_KEY || ''
+  if (!apiKey) {
     return NextResponse.json({ error: 'API not configured' }, { status: 500 })
   }
 
@@ -141,11 +167,11 @@ Return this exact JSON structure:
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
+        'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: MODEL,
+        model: anthropicModel(),
         max_tokens: 3000,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
@@ -204,10 +230,11 @@ Return this exact JSON structure:
 
     if (saveErr) {
       console.error('Scan save error:', saveErr)
+      return NextResponse.json({ error: 'Report generated but could not be saved' }, { status: 500 })
     }
 
     return NextResponse.json({
-      id: saved?.id || null,
+      id: saved.id,
       report,
       is_enriched: isEnriched,
     })

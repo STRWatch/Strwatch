@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { getEffectiveTier } from '@/lib/tier'
 import ScansClient from './ScansClient'
 
 export default async function ScansPage() {
@@ -8,17 +9,9 @@ export default async function ScansPage() {
   if (!userId) redirect('/sign-in')
   const supabase = createClient()
 
-  const { data: tierData } = await supabase
-    .from('user_tiers')
-    .select('tier, trial_ends_at')
-    .eq('user_id', userId)
-    .single()
-
-  const now = new Date()
-  const tier = tierData?.tier || 'free'
-  const trialEndsAt = tierData?.trial_ends_at ? new Date(tierData.trial_ends_at) : null
-  const isTrialActive = trialEndsAt && trialEndsAt > now && tier === 'pro'
-  const canScan = tier === 'pro' || tier === 'agency' || isTrialActive
+  // Same decision /api/scans/generate makes: an expired trial reads as free.
+  const { tier, isPaid, isTrialActive } = await getEffectiveTier(userId)
+  const canScan = isPaid || isTrialActive
 
   const { data: scans } = await supabase
     .from('scans')
@@ -30,7 +23,7 @@ export default async function ScansPage() {
   return <ScansClient
     userId={userId}
     scans={scans || []}
-    canScan={canScan || false}
+    canScan={canScan}
     tier={tier}
   />
 }

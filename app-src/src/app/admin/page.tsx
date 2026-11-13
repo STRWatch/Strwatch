@@ -4,11 +4,30 @@ import { clerkClient } from '@clerk/nextjs/server'
 
 export const dynamic = 'force-dynamic'
 
-type TierRow = { user_id: string; tier: string; trial_ends_at: string | null; created_at?: string }
+type TierRow = {
+  user_id: string
+  tier: string
+  trial_ends_at: string | null
+  created_at?: string | null
+  stripe_customer_id?: string | null
+  founding_member?: boolean | null
+  founding_price?: boolean | null
+  last_login_at?: string | null
+}
 type MarketRow = { user_id: string; city: string }
 type AlertRow = { urgency: string }
-type ScanRow = { is_enriched: boolean }
 type WaitlistRow = { email: string; created_at: string }
+type ScrapeRunRow = {
+  source: string
+  city: string
+  status: string
+  started_at: string
+  finished_at: string | null
+  pages_changed: number | null
+  error: string | null
+}
+
+const STALE_HOURS = 48
 
 function classifyTier(row: TierRow): string {
   if (row.tier === 'agency') return 'agency'
@@ -19,6 +38,28 @@ function classifyTier(row: TierRow): string {
   return 'free'
 }
 
+type EffectiveTierKey = 'free' | 'trial' | 'pro' | 'agency'
+
+/** Mirrors getEffectiveTier: an expired, unpaid 'pro' trial reads as free. */
+function effectiveTier(row: TierRow, now: Date): EffectiveTierKey {
+  if (row.tier === 'agency') return 'agency'
+  if (row.tier !== 'pro') return 'free'
+  if (!row.trial_ends_at) return 'pro'
+  return new Date(row.trial_ends_at) > now ? 'trial' : 'free'
+}
+
+/** ISO-8601 week key (e.g. 2026-W46) for a date, computed in UTC. */
+function isoWeekKey(d: Date): string {
+  const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+  const day = date.getUTCDay() || 7
+  date.setUTCDate(date.getUTCDate() + 4 - day)
+  const yearStart = Date.UTC(date.getUTCFullYear(), 0, 1)
+  const week = Math.ceil(((date.getTime() - yearStart) / 86400000 + 1) / 7)
+  return `${date.getUTCFullYear()}-W${String(week).padStart(2, '0')}`
+}
+
+const TIER_SELECT = 'user_id, tier, trial_ends_at, created_at, stripe_customer_id, founding_member, founding_price, last_login_at'
+
 export default async function AdminPage() {
   await requireAdmin()
   const supabase = createClient()
@@ -27,41 +68,62 @@ export default async function AdminPage() {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString()
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
 
-  const [tierRes, marketRes, waitlistRes, alertRes, scanRes, recentTierRes, recentWaitlistRes] = await Promise.all([
-    supabase.from('user_tiers').select('user_id, tier, trial_ends_at, created_at'),
-    supabase.from('user_markets').select('user_id, city'),
-    supabase.from('waitlist').select('email, created_at'),
+  const PAGE_SIZE = 1000
+
+  /** Pages a query with .range() until a short page; errors are collected, not thrown. */
+  async function fetchAll<T>(label: string, build: (from: number, to: number) => PromiseLike<{ data: unknown; error: { message: string } | null }>): Promise<T[]> {
+    const rows: T[] = []
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const { data, error } = await build(from, from + PAGE_SIZE - 1)
+      if (error) { errors.push(`${label}: ${error.message}`); break }
+      const page = (data || []) as T[]
+      rows.push(...page)
+      if (page.length < PAGE_SIZE) break
+    }
+    return rows
+  }
+
+  const countOf = (label: string) => (res: { count: number | null; error: { message: string } | null }): number => {
+    if (res.error) errors.push(`${label}: ${res.error.message}`)
+    return res.count ?? 0
+  }
+
+  const [tiers, markets, scrapeRuns, waitlistTotalRes, waitlist7dRes, alertRes, queuedAlertsRes, totalScansRes, enrichedScansRes, recentWaitlistRes] = await Promise.all([
+    fetchAll<TierRow>('user_tiers', (from, to) => supabase.from('user_tiers').select(TIER_SELECT).order('user_id').range(from, to)),
+    fetchAll<MarketRow>('user_markets', (from, to) => supabase.from('user_markets').select('user_id, city').order('user_id').order('city').range(from, to)),
+    fetchAll<ScrapeRunRow>('scrape_runs', (from, to) => supabase.from('scrape_runs').select('source, city, status, started_at, finished_at, pages_changed, error').order('started_at', { ascending: false }).order('id', { ascending: false }).range(from, to)),
+    supabase.from('waitlist').select('*', { count: 'exact', head: true }),
+    supabase.from('waitlist').select('*', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo),
     supabase.from('alerts').select('urgency, sent_at').gte('sent_at', thirtyDaysAgo),
-    supabase.from('scans').select('is_enriched'),
-    supabase.from('user_tiers').select('user_id, tier, trial_ends_at, created_at').order('created_at', { ascending: false }).limit(10),
+    supabase.from('alerts').select('*', { count: 'exact', head: true }).is('sent_at', null),
+    supabase.from('scans').select('*', { count: 'exact', head: true }),
+    supabase.from('scans').select('*', { count: 'exact', head: true }).eq('is_enriched', true),
     supabase.from('waitlist').select('email, created_at').order('created_at', { ascending: false }).limit(10),
   ])
 
-  if (tierRes.error) errors.push(`user_tiers: ${tierRes.error.message}`)
-  if (marketRes.error) errors.push(`user_markets: ${marketRes.error.message}`)
-  if (waitlistRes.error) errors.push(`waitlist: ${waitlistRes.error.message}`)
   if (alertRes.error) errors.push(`alerts: ${alertRes.error.message}`)
-  if (scanRes.error) errors.push(`scans: ${scanRes.error.message}`)
-  if (recentTierRes.error) errors.push(`recent user_tiers: ${recentTierRes.error.message}`)
   if (recentWaitlistRes.error) errors.push(`recent waitlist: ${recentWaitlistRes.error.message}`)
 
-  const tiers = (tierRes.data || []) as TierRow[]
-  const markets = (marketRes.data || []) as MarketRow[]
-  const waitlist = (waitlistRes.data || []) as WaitlistRow[]
   const alerts = (alertRes.data || []) as (AlertRow & { sent_at: string })[]
-  const scans = (scanRes.data || []) as ScanRow[]
-  const recentTiers = (recentTierRes.data || []) as TierRow[]
   const recentWaitlist = (recentWaitlistRes.data || []) as WaitlistRow[]
+  const waitlistTotal = countOf('waitlist count')(waitlistTotalRes)
+  const waitlist7d = countOf('waitlist 7d count')(waitlist7dRes)
+  const queuedAlerts = countOf('queued alerts count')(queuedAlertsRes)
+  const totalScans = countOf('scans count')(totalScansRes)
+  const enrichedScans = countOf('enriched scans count')(enrichedScansRes)
 
-  // ── Resolve emails from Clerk ───────────────────────────
+  // ── Resolve emails from Clerk (all accounts, batches of 100) ───
   const emailMap: Record<string, string> = {}
-  const userIdsToResolve = recentTiers.map(t => t.user_id).filter(Boolean)
-  if (userIdsToResolve.length > 0) {
+  const allUserIds = Array.from(new Set(tiers.map(t => t.user_id).filter(Boolean)))
+  if (allUserIds.length > 0) {
     try {
       const clerk = await clerkClient()
-      const res = await clerk.users.getUserList({ userId: userIdsToResolve, limit: 10 })
-      for (const u of res.data) {
-        emailMap[u.id] = u.emailAddresses?.[0]?.emailAddress || ''
+      for (let i = 0; i < allUserIds.length; i += 100) {
+        const batch = allUserIds.slice(i, i + 100)
+        const res = await clerk.users.getUserList({ userId: batch, limit: 100 })
+        for (const u of res.data) {
+          emailMap[u.id] = u.emailAddresses?.[0]?.emailAddress || ''
+        }
       }
     } catch (e: any) {
       errors.push(`Clerk user lookup: ${e.message}`)
@@ -76,18 +138,69 @@ export default async function AdminPage() {
 
   const signups7d = tiers.filter(t => t.created_at && t.created_at >= sevenDaysAgo).length
   const signups30d = tiers.filter(t => t.created_at && t.created_at >= thirtyDaysAgo).length
-  const mrr = counts.pro_paid * 29 + counts.agency * 99
+  // Founding members pay $19/mo locked; everyone else on paid Pro pays $29.
+  const foundingPaid = classified.filter(t => t.classification === 'pro_paid' && t.founding_price).length
+  const mrr = foundingPaid * 19 + (counts.pro_paid - foundingPaid) * 29 + counts.agency * 99
 
-  // ── Waitlist stats ─────────────────────────────────────
-  const waitlistTotal = waitlist.length
-  const waitlist7d = waitlist.filter(w => w.created_at >= sevenDaysAgo).length
+  // ── Effective tier counts (same logic as getEffectiveTier) ──
+  const now = new Date()
+  const effectiveCounts: Record<EffectiveTierKey, number> = { free: 0, trial: 0, pro: 0, agency: 0 }
+  for (const t of tiers) effectiveCounts[effectiveTier(t, now)]++
+
+  // ── Trial-to-paid conversion ───────────────────────────
+  // converted: has a Stripe customer. lapsedUnpaid: no customer and trial already over.
+  // Resolved trials = converted + lapsedUnpaid (active trials are still undecided).
+  const converted = tiers.filter(t => !!t.stripe_customer_id).length
+  const lapsedUnpaid = tiers.filter(t => !t.stripe_customer_id && t.trial_ends_at && new Date(t.trial_ends_at) < now).length
+  const resolvedTrials = converted + lapsedUnpaid
+  const conversionPct = resolvedTrials > 0 ? ((converted / resolvedTrials) * 100).toFixed(1) : null
+
+  // ── Signups per ISO week, last 12 weeks ────────────────
+  const weekKeys: string[] = []
+  for (let i = 11; i >= 0; i--) weekKeys.push(isoWeekKey(new Date(now.getTime() - i * 7 * 86400000)))
+  const weekCounts: Record<string, number> = Object.fromEntries(weekKeys.map(k => [k, 0]))
+  for (const t of tiers) {
+    if (!t.created_at) continue
+    const k = isoWeekKey(new Date(t.created_at))
+    if (k in weekCounts) weekCounts[k]++
+  }
+  const weeklySignups = weekKeys.map(k => [k, weekCounts[k]] as const)
+
+  // ── Scraper health: latest run per (source, city) ──────
+  // Rows arrive ordered by started_at desc, so the first hit per key is the latest.
+  const latestRuns = new Map<string, ScrapeRunRow>()
+  for (const r of scrapeRuns) {
+    const key = `${r.source}\u0000${r.city}`
+    if (!latestRuns.has(key)) latestRuns.set(key, r)
+  }
+  const hoursSince = (r: ScrapeRunRow): number | null => {
+    const ts = r.finished_at || r.started_at
+    return ts ? (now.getTime() - new Date(ts).getTime()) / 3600000 : null
+  }
+  const isError = (r: ScrapeRunRow) => r.status === 'error'
+  const isStale = (r: ScrapeRunRow) => {
+    const h = hoursSince(r)
+    return h === null || h > STALE_HOURS
+  }
+  const rank = (r: ScrapeRunRow) => (isError(r) ? 0 : isStale(r) ? 1 : 2)
+  const healthRows = Array.from(latestRuns.values()).sort((a, b) => {
+    const d = rank(a) - rank(b)
+    if (d !== 0) return d
+    return a.source.localeCompare(b.source) || a.city.localeCompare(b.city)
+  })
+  const healthErrors = healthRows.filter(isError).length
+  const healthStale = healthRows.filter(r => !isError(r) && isStale(r)).length
+
+  // ── Users table ────────────────────────────────────────
+  const marketCountByUser: Record<string, number> = {}
+  for (const m of markets) marketCountByUser[m.user_id] = (marketCountByUser[m.user_id] || 0) + 1
+  const userRows = [...tiers].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
+
 
   // ── Engagement ─────────────────────────────────────────
   const activeUserIds = new Set(markets.map(m => m.user_id))
   const activeUsers = activeUserIds.size
   const avgMarkets = activeUsers > 0 ? (markets.length / activeUsers).toFixed(1) : '0'
-  const totalScans = scans.length
-  const enrichedScans = scans.filter(s => s.is_enriched).length
   const alertsSent30d = alerts.length
 
   // ── Top cities ─────────────────────────────────────────
@@ -106,6 +219,8 @@ export default async function AdminPage() {
     medium:   { bg: '#fdf3e3', border: '#f5d9a0', text: '#b87d2d' },
     low:      { bg: '#e8f0ff', border: '#b8cff7', text: '#3060a8' },
   }
+
+  const EFFECTIVE_LABELS: Record<EffectiveTierKey, string> = { free: 'Free', trial: 'Trial', pro: 'Pro', agency: 'Agency' }
 
   const TIER_LABELS: Record<string, string> = {
     free: 'Free',
@@ -186,15 +301,20 @@ export default async function AdminPage() {
         </div>
         <div style={card}>
           <div style={bigNum}>{signups7d}</div>
-          <div style={label}>Signups (7d)</div>
+          <div style={label}>First loads (7d)</div>
         </div>
         <div style={card}>
           <div style={bigNum}>{signups30d}</div>
-          <div style={label}>Signups (30d)</div>
+          <div style={label}>First loads (30d)</div>
         </div>
         <div style={card}>
           <div style={bigNum}>${mrr.toLocaleString()}</div>
           <div style={label}>Est. MRR</div>
+        </div>
+        <div style={card}>
+          <div style={bigNum}>{conversionPct !== null ? `${conversionPct}%` : '—'}</div>
+          <div style={label}>Trial → paid</div>
+          <div style={{ fontSize: '0.6rem', color: '#94a3b8', marginTop: '4px' }}>{converted} converted / {resolvedTrials} resolved trials</div>
         </div>
         <div style={card}>
           <div style={bigNum}>{waitlistTotal}</div>
@@ -203,6 +323,32 @@ export default async function AdminPage() {
         <div style={card}>
           <div style={bigNum}>{waitlist7d}</div>
           <div style={label}>Waitlist (7d)</div>
+        </div>
+      </div>
+
+      {/* ── Effective tier + weekly signups ───────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginBottom: '32px' }}>
+        <div style={card}>
+          <div style={sectionTitle}>Current Users by Effective Tier</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '12px' }}>
+            {(Object.keys(EFFECTIVE_LABELS) as EffectiveTierKey[]).map(key => (
+              <div key={key} style={{ padding: '14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a', lineHeight: 1, marginBottom: '4px' }}>{effectiveCounts[key]}</div>
+                <div style={{ fontSize: '0.65rem', color: '#64748b' }}>{EFFECTIVE_LABELS[key]}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: '0.6rem', color: '#94a3b8', marginTop: '10px' }}>Expired, unpaid Pro trials count as Free (same rule as getEffectiveTier).</div>
+        </div>
+        <div style={card}>
+          <div style={sectionTitle}>First Dashboard Loads per ISO Week (last 12)</div>
+          <div style={{ fontSize: '0.6rem', color: '#94a3b8', marginTop: '-10px', marginBottom: '10px' }}>user_tiers.created_at is set on first dashboard load, not at Clerk signup.</div>
+          {weeklySignups.map(([week, count], i) => (
+            <div key={week} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: i < weeklySignups.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+              <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#334155' }}>{week}</span>
+              <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>{count}</span>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -244,6 +390,11 @@ export default async function AdminPage() {
           <div style={bigNum}>{alertsSent30d}</div>
           <div style={label}>Alerts sent (30d)</div>
         </div>
+        <div style={card}>
+          <div style={bigNum}>{queuedAlerts}</div>
+          <div style={label}>Queued for digest</div>
+          <div style={{ fontSize: '0.6rem', color: '#94a3b8', marginTop: '4px' }}>Alerts with no sent_at yet</div>
+        </div>
       </div>
 
       {/* ── Top cities + Alerts by urgency ─────────────── */}
@@ -281,31 +432,82 @@ export default async function AdminPage() {
         </div>
       </div>
 
-      {/* ── Recent account signups ─────────────────────── */}
+      {/* ── Scraper health ─────────────────────────────── */}
       <div style={{ ...card, marginBottom: '32px', padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '16px 20px', borderBottom: '1.5px solid #e2e8f0' }}>
-          <div style={sectionTitle}>Recent Account Signups</div>
+        <div style={{ padding: '16px 20px', borderBottom: '1.5px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '8px' }}>
+          <div style={{ ...sectionTitle, marginBottom: 0 }}>Scraper Health</div>
+          <div style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: '#64748b' }}>
+            {healthRows.length} sources · <span style={{ color: healthErrors > 0 ? '#b84040' : '#64748b' }}>{healthErrors} errors</span> · <span style={{ color: healthStale > 0 ? '#b87d2d' : '#64748b' }}>{healthStale} stale (&gt;{STALE_HOURS}h)</span>
+          </div>
         </div>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={th}>User ID</th>
-                <th style={th}>Email</th>
-                <th style={th}>Tier</th>
-                <th style={th}>Trial ends</th>
-                <th style={th}>Created</th>
+                <th style={th}>Source</th>
+                <th style={th}>City</th>
+                <th style={th}>Status</th>
+                <th style={th}>Finished</th>
+                <th style={th}>Hours since</th>
+                <th style={th}>Pages changed</th>
+                <th style={th}>Error</th>
               </tr>
             </thead>
             <tbody>
-              {recentTiers.length === 0 ? (
-                <tr><td colSpan={5} style={{ ...td, textAlign: 'center', color: '#94a3b8' }}>No data</td></tr>
-              ) : recentTiers.map((t, i) => (
-                <tr key={i}>
-                  <td style={td} title={t.user_id}>{t.user_id.slice(0, 12)}...</td>
-                  <td style={td}>{emailMap[t.user_id] || '—'}</td>
-                  <td style={td}>{t.tier}</td>
+              {healthRows.length === 0 ? (
+                <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#94a3b8' }}>No scrape runs recorded</td></tr>
+              ) : healthRows.map(r => {
+                const h = hoursSince(r)
+                const err = isError(r)
+                const stale = !err && isStale(r)
+                const statusColor = err ? '#b84040' : stale ? '#b87d2d' : r.status === 'changed' ? '#3060a8' : '#2d7a4f'
+                const errText = r.error ? (r.error.length > 120 ? `${r.error.slice(0, 120)}…` : r.error) : '—'
+                return (
+                  <tr key={`${r.source}|${r.city}`} style={{ background: err ? '#fff7f6' : stale ? '#fffbf2' : undefined }}>
+                    <td style={td}>{r.source}</td>
+                    <td style={td}>{r.city}</td>
+                    <td style={{ ...td, color: statusColor, fontWeight: 600 }}>{r.status}{stale ? ' (stale)' : ''}</td>
+                    <td style={td}>{r.finished_at ? new Date(r.finished_at).toLocaleString() : '—'}</td>
+                    <td style={td}>{h === null ? '—' : h.toFixed(1)}</td>
+                    <td style={td}>{r.pages_changed ?? '—'}</td>
+                    <td style={{ ...td, maxWidth: '360px', whiteSpace: 'normal', wordBreak: 'break-word' }} title={r.error || undefined}>{errText}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── Users ──────────────────────────────────────── */}
+      <div style={{ ...card, marginBottom: '32px', padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1.5px solid #e2e8f0' }}>
+          <div style={sectionTitle}>Users ({userRows.length})</div>
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={th}>Email</th>
+                <th style={th}>Tier</th>
+                <th style={th}>Trial ends</th>
+                <th style={th}>Founding</th>
+                <th style={th}>Markets</th>
+                <th style={th}>Last login</th>
+                <th style={th}>First dashboard load</th>
+              </tr>
+            </thead>
+            <tbody>
+              {userRows.length === 0 ? (
+                <tr><td colSpan={7} style={{ ...td, textAlign: 'center', color: '#94a3b8' }}>No data</td></tr>
+              ) : userRows.map(t => (
+                <tr key={t.user_id}>
+                  <td style={td} title={t.user_id}>{emailMap[t.user_id] || `${t.user_id.slice(0, 12)}...`}</td>
+                  <td style={td}>{EFFECTIVE_LABELS[effectiveTier(t, now)]}</td>
                   <td style={td}>{t.trial_ends_at ? new Date(t.trial_ends_at).toLocaleDateString() : '—'}</td>
+                  <td style={td}>{t.founding_member ? 'yes' : '—'}</td>
+                  <td style={td}>{marketCountByUser[t.user_id] || 0}</td>
+                  <td style={td}>{t.last_login_at ? new Date(t.last_login_at).toLocaleString() : '—'}</td>
                   <td style={td}>{t.created_at ? new Date(t.created_at).toLocaleDateString() : '—'}</td>
                 </tr>
               ))}
@@ -324,7 +526,7 @@ export default async function AdminPage() {
             <thead>
               <tr>
                 <th style={th}>Email</th>
-                <th style={th}>Created</th>
+                <th style={th}>First dashboard load</th>
               </tr>
             </thead>
             <tbody>

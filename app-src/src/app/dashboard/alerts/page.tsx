@@ -2,6 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import sanitizeHtml from 'sanitize-html'
+import { safeHref } from '@/lib/safeHref'
 
 const URGENCY_COLORS: Record<string, {bg:string;border:string;text:string}> = {
   high:   {bg:'#fff0ee',border:'#f7c8c8',text:'#b84040'},
@@ -9,28 +10,30 @@ const URGENCY_COLORS: Record<string, {bg:string;border:string;text:string}> = {
   low:    {bg:'#e8f5ee',border:'#c8ecd8',text:'#2d7a4f'},
 }
 
+/** Display timestamp for an alert: sent_at, else created_at, else null. */
+function alertDate(a: { sent_at?: string | null; created_at?: string | null }): Date | null {
+  const raw = a.sent_at ?? a.created_at ?? null
+  if (!raw) return null
+  const d = new Date(raw)
+  return isNaN(d.getTime()) ? null : d
+}
+
 export default async function AlertsPage() {
   const { userId } = await auth()
   if (!userId) redirect('/sign-in')
   const supabase = createClient()
 
-  // Get user's saved markets first
-  const { data: userMarkets } = await supabase
-    .from('user_markets')
-    .select('city')
+  // Alerts are written per user, so query by user_id (same as the dashboard overview).
+  // created_at covers free-tier alerts queued for the weekly digest (sent_at NULL);
+  // id breaks ties for rows created in the same instant.
+  const { data: alerts, error: alertsError } = await supabase
+    .from('alerts')
+    .select('*')
     .eq('user_id', userId)
-
-  const cities = (userMarkets || []).map((m: { city: string }) => m.city)
-
-  // Fetch alerts for any of the user's cities
-  const { data: alerts } = cities.length > 0
-    ? await supabase
-        .from('alerts')
-        .select('*')
-        .in('city', cities)
-        .order('sent_at', { ascending: false })
-        .limit(50)
-    : { data: [] }
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(50)
+  if (alertsError) console.error('alerts query error:', alertsError)
 
   return (
     <div>
@@ -43,15 +46,21 @@ export default async function AlertsPage() {
           </div>
         ) : alerts.map((alert:any, i:number) => {
           const c = URGENCY_COLORS[alert.urgency]||URGENCY_COLORS.medium
-          const date = new Date(alert.sent_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})
+          const ts = alertDate(alert)
+          const date = ts ? ts.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—'
+          const queued = alert.sent_at == null
           const hasChecklist = alert.checklist && alert.checklist.trim().length > 0
+          const sourceHref = safeHref(alert.source_url)
           return (
             <div key={alert.id} style={{padding:'20px',borderBottom:i<alerts.length-1?'1px solid var(--border)':'none'}}>
               <div style={{display:'flex',alignItems:'flex-start',gap:'12px'}}>
                 <span style={{display:'inline-block',background:c.bg,border:`1px solid ${c.border}`,color:c.text,fontSize:'0.58rem',letterSpacing:'0.1em',textTransform:'uppercase',padding:'3px 8px',borderRadius:'100px',whiteSpace:'nowrap',marginTop:'2px'}}>{alert.urgency}</span>
                 <div style={{flex:1}}>
                   <div style={{fontFamily:'var(--font-syne)',fontWeight:700,fontSize:'0.95rem',color:'var(--ink)',marginBottom:'4px'}}>{alert.headline}</div>
-                  <div style={{fontFamily:'var(--font-mono)',fontSize:'0.58rem',color:'var(--text-faint)',letterSpacing:'0.05em',marginBottom:'8px'}}>{alert.city} · {date}</div>
+                  <div style={{fontFamily:'var(--font-mono)',fontSize:'0.58rem',color:'var(--text-faint)',letterSpacing:'0.05em',marginBottom:'8px'}}>
+                    {alert.city} · {date}
+                    {queued && <span style={{display:'inline-block',marginLeft:'8px',background:'#f1f5f9',border:'1px solid var(--border)',color:'var(--text-muted)',fontSize:'0.52rem',letterSpacing:'0.08em',textTransform:'uppercase',padding:'1px 6px',borderRadius:'100px',verticalAlign:'middle'}}>Queued for weekly digest</span>}
+                  </div>
                   {alert.detail && <div style={{fontSize:'0.82rem',color:'var(--text-mid)',lineHeight:1.6,background:'var(--off-white)',border:'1px solid var(--border)',borderRadius:'6px',padding:'10px 12px',marginBottom:'8px'}}>{alert.detail}</div>}
                   {hasChecklist && (
                     <div
@@ -65,7 +74,9 @@ export default async function AlertsPage() {
                       })}}
                     />
                   )}
-                  {alert.source_url && <a href={alert.source_url} target="_blank" rel="noopener noreferrer" style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',color:'var(--green)',letterSpacing:'0.05em'}}>View source →</a>}
+                  {alert.source_url && (sourceHref
+                    ? <a href={sourceHref} target="_blank" rel="noopener noreferrer" style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',color:'var(--green)',letterSpacing:'0.05em'}}>View source →</a>
+                    : <span style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',color:'var(--text-faint)',letterSpacing:'0.05em',wordBreak:'break-all'}}>Source: {String(alert.source_url)}</span>)}
                 </div>
               </div>
             </div>

@@ -51,11 +51,11 @@ RETRY_BACKOFF = [5, 15, 30]  # seconds between retries
 REQUEST_TIMEOUT = 45  # increased from 20
 
 # Vercel proxy for .gov sites that block datacenter IPs
-PROXY_BASE = config.PROXY_BASE if hasattr(config, 'PROXY_BASE') else None
-PROXY_SECRET = config.PROXY_SECRET if hasattr(config, 'PROXY_SECRET') else None
+PROXY_BASE = config.PROXY_BASE
+PROXY_SECRET = config.PROXY_SECRET
 
 # Apify headless browser for sites with Cloudflare JS challenges
-APIFY_TOKEN = config.APIFY_TOKEN if hasattr(config, 'APIFY_TOKEN') else None
+APIFY_TOKEN = config.APIFY_TOKEN
 
 STR_PAGE = config.AUSTIN_STR_PAGE
 COUNCIL_PAGE = config.AUSTIN_COUNCIL_AGENDA_BASE
@@ -140,10 +140,12 @@ def _fetch_with_retry(url: str, timeout: int = REQUEST_TIMEOUT, stream: bool = F
 
 def _fetch_via_proxy(url: str, timeout: int = REQUEST_TIMEOUT) -> Optional[requests.Response]:
     """Fetch via Vercel serverless proxy (for .gov sites blocking datacenter IPs)."""
-    proxy_url = f"{PROXY_BASE}?url={quote_plus(url)}&key={PROXY_SECRET}"
+    # The proxy accepts the shared secret in a header only (never the query string,
+    # which would land in access logs). See api/proxy/fetch.js.
+    proxy_url = f"{PROXY_BASE}?url={quote_plus(url)}"
     try:
         log.info("Trying Vercel proxy for %s", url)
-        resp = requests.get(proxy_url, timeout=timeout)
+        resp = requests.get(proxy_url, headers={"x-proxy-secret": PROXY_SECRET}, timeout=timeout)
         resp.raise_for_status()
         log.info("Proxy success for %s (%d bytes)", url, len(resp.content))
         return resp

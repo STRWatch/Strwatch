@@ -237,3 +237,36 @@ class TestFormatChecklistText:
         text = _format_checklist_text(result, "Denver, CO", "Test")
         assert "DEADLINE" not in text
         assert "Do thing" in text
+
+
+class TestModelSelection:
+    def _mock_api_response(self, content_text):
+        mock_block = MagicMock()
+        mock_block.text = content_text
+        mock_message = MagicMock()
+        mock_message.content = [mock_block]
+        return mock_message
+
+    def _good_json(self):
+        return json.dumps({"summary": "S", "urgency": "low", "deadline": None,
+                           "steps": [{"step": 1, "action": "A", "detail": "D"}]})
+
+    @patch.dict('os.environ', {'ANTHROPIC_API_KEY': 'sk-test-key', 'ANTHROPIC_MODEL': ''})
+    @patch('anthropic.Anthropic')
+    def test_default_model_when_env_unset(self, mock_anthropic_cls):
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = self._mock_api_response(self._good_json())
+        from alerts.checklist import generate_checklist, DEFAULT_MODEL
+        assert generate_checklist(city="X", title="T", keywords=[]) is not None
+        assert mock_client.messages.create.call_args[1]["model"] == DEFAULT_MODEL == "claude-sonnet-5-5"
+
+    @patch.dict('os.environ', {'ANTHROPIC_API_KEY': 'sk-test-key', 'ANTHROPIC_MODEL': 'claude-test-override'})
+    @patch('anthropic.Anthropic')
+    def test_env_model_is_read_at_call_time(self, mock_anthropic_cls):
+        mock_client = MagicMock()
+        mock_anthropic_cls.return_value = mock_client
+        mock_client.messages.create.return_value = self._mock_api_response(self._good_json())
+        from alerts.checklist import generate_checklist
+        generate_checklist(city="X", title="T", keywords=[])
+        assert mock_client.messages.create.call_args[1]["model"] == "claude-test-override"

@@ -204,3 +204,45 @@ class TestDenverAlerts:
         ])
         mock_email.assert_called_once()
         mock_sms.assert_called_once()
+
+
+class TestChecklistFormattingFailure:
+    """A broken checklist formatter must not stop the alert."""
+
+    @patch('alerts.notify.route_legislation_alert')
+    @patch('alerts.notify.store')
+    @patch('alerts.notify.send_sms')
+    @patch('alerts.notify.send_email')
+    @patch('alerts.notify._generate_checklist_safe')
+    def test_legislation_alert_survives_formatter_error(
+        self, mock_checklist, mock_email, mock_sms, mock_store, mock_route
+    ):
+        mock_store.already_alerted.return_value = False
+        mock_checklist.return_value = {"steps": [{"step": 1, "action": "A", "detail": "D"}]}
+        from alerts.notify import alert_new_legislation
+        with patch('alerts.checklist.format_checklist_html', side_effect=RuntimeError("nh3 missing")):
+            alert_new_legislation(city="Austin, TX", bill_id="B-1", title="T",
+                                  url="https://example.com", keywords=["STR"])
+        mock_email.assert_called_once()
+        assert "AI COMPLIANCE CHECKLIST" not in mock_email.call_args[0][1]
+        mock_store.record_alert.assert_called_once()
+
+    @patch('alerts.notify.route_page_change_alert')
+    @patch('alerts.notify.store')
+    @patch('alerts.notify.send_sms')
+    @patch('alerts.notify.send_email')
+    @patch('alerts.notify._generate_checklist_safe')
+    def test_page_change_alert_survives_formatter_error(
+        self, mock_checklist, mock_email, mock_sms, mock_store, mock_route
+    ):
+        mock_store.already_alerted.return_value = False
+        mock_checklist.return_value = {"steps": [{"step": 1, "action": "A", "detail": "D"}]}
+        from alerts.notify import alert_page_changed
+        with patch('alerts.checklist.format_checklist_html', side_effect=RuntimeError("boom")):
+            alert_page_changed(name="P", city="Nashville, TN", url="https://nashville.gov", priority="high")
+        mock_email.assert_called_once()
+        mock_store.record_alert.assert_called_once()
+
+    def test_nh3_imported_at_module_level(self):
+        import alerts.checklist as c
+        assert hasattr(c, "nh3")

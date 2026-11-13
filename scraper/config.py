@@ -31,6 +31,14 @@ SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 USE_SUPABASE = bool(SUPABASE_URL and SUPABASE_KEY)
 
+# ── Fetch fallbacks for .gov sites that block datacenter IPs ─────────────────
+# Vercel proxy (repo-root api/proxy/fetch.js) — base URL and shared secret sent
+# as the x-proxy-secret header. Empty disables the proxy fallback.
+PROXY_BASE = os.getenv("PROXY_BASE", "")
+PROXY_SECRET = os.getenv("PROXY_SECRET", "")
+# Apify headless browser for Cloudflare JS challenges. Empty disables.
+APIFY_TOKEN = os.getenv("APIFY_TOKEN", "")
+
 # ── Denver SODA API ───────────────────────────────────────────────────────────
 DENVER_SODA_ENDPOINT = "https://data.colorado.gov/resource/f3vc-vat3.json"
 DENVER_SODA_LIMIT = 1000  # records per page

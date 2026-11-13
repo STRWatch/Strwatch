@@ -8,14 +8,51 @@ Includes AI-generated compliance checklists in alert emails.
 """
 
 import os
+import html
 import logging
 import json
 import requests
+from datetime import datetime, timezone
 from typing import List, Optional
 from dotenv import load_dotenv
 load_dotenv()
 
 log = logging.getLogger(__name__)
+
+# Tiers that receive real-time email. Anything else (free, expired trial,
+# unknown) is batched into the weekly digest (alerts/digest.py).
+REALTIME_TIERS = ("pro", "agency")
+
+
+def esc(value) -> str:
+    """html.escape() any value destined for an email body. None -> ''."""
+    if value is None:
+        return ""
+    return html.escape(str(value), quote=True)
+
+
+def safe_href(url) -> Optional[str]:
+    """Return an escaped href only for https:// URLs; otherwise None.
+
+    Scraped or LLM-supplied URLs are never trusted as link targets unless they
+    are plain https. Callers render anything else as escaped text.
+    """
+    if not url:
+        return None
+    u = str(url).strip()
+    if not u.lower().startswith("https://"):
+        return None
+    return html.escape(u, quote=True)
+
+
+def source_link_html(url, label: str = "View source →", style: str = "") -> str:
+    """Render a source link as <a> for https URLs, or escaped text otherwise."""
+    href = safe_href(url)
+    if href:
+        return f'<a href="{href}" style="{style}">{label}</a>'
+    if url:
+        return f'<span style="font-size:0.8rem;color:#374530;word-break:break-all;">{esc(url)}</span>'
+    return ""
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 if not SUPABASE_URL:
@@ -89,10 +126,16 @@ def get_user_preferences(user_id: str) -> dict:
         return {}
 
 
-def get_user_tier(user_id: str) -> str:
-    """Fetch user tier from Supabase."""
+def get_user_tier(user_id: str) -> Optional[str]:
+    """Fetch user tier from Supabase.
+
+    Returns the tier string ("free", "pro", "agency"), or None when the
+    lookup fails or there is no row. None means "unknown" and callers must
+    fail OPEN (real-time delivery) — only an explicit free tier is digested.
+    """
     if not SUPABASE_SERVICE_KEY:
-        return "free"
+        log.error("SUPABASE_SERVICE_ROLE_KEY not set — tier unknown for %s", user_id)
+        return None
     try:
         resp = requests.get(
             f"{SUPABASE_URL}/rest/v1/user_tiers",
@@ -101,15 +144,16 @@ def get_user_tier(user_id: str) -> str:
             timeout=10,
         )
         if not resp.ok:
-            return "free"
+            log.error("Tier lookup failed for %s: %s %s", user_id, resp.status_code, resp.text[:200])
+            return None
         rows = resp.json()
         if not rows:
-            return "free"
+            log.error("No user_tiers row for %s — tier unknown", user_id)
+            return None
         row = rows[0]
-        tier = row.get("tier", "free")
+        tier = row.get("tier") or "free"
         trial_ends = row.get("trial_ends_at")
         if trial_ends and tier == "pro":
-            from datetime import datetime, timezone
             ends = datetime.fromisoformat(trial_ends.replace("Z", "+00:00"))
             if ends > datetime.now(timezone.utc):
                 return "pro"  # trial still active
@@ -117,7 +161,12 @@ def get_user_tier(user_id: str) -> str:
         return tier
     except Exception as e:
         log.error("Error fetching tier for %s: %s", user_id, e)
-        return "free"
+        return None
+
+
+def is_realtime_tier(tier: Optional[str]) -> bool:
+    """Only an explicit 'free' tier is batched into the digest; unknown fails open."""
+    return tier != "free"
 
 
 def send_sms_to_user(phone: str, message: str) -> bool:
@@ -141,8 +190,13 @@ def send_sms_to_user(phone: str, message: str) -> bool:
 
 def save_alert_to_supabase(user_id: str, city: str, subject: str,
                             headline: str, detail: str, source_url: str,
-                            urgency: str, checklist_json: str = None) -> bool:
-    """Save alert to Supabase alerts table for dashboard display."""
+                            urgency: str, checklist_json: str = None,
+                            sent: bool = True) -> bool:
+    """Save alert to Supabase alerts table for dashboard display.
+
+    sent=False inserts the row with sent_at NULL so the weekly digest
+    (alerts/digest.py) picks it up later.
+    """
     if not SUPABASE_SERVICE_KEY:
         return False
     try:
@@ -154,7 +208,7 @@ def save_alert_to_supabase(user_id: str, city: str, subject: str,
             "detail": detail,
             "source_url": source_url,
             "urgency": urgency,
-            "sent_at": __import__("datetime").datetime.utcnow().isoformat(),
+            "sent_at": datetime.now(timezone.utc).isoformat() if sent else None,
         }
         if checklist_json:
             payload["checklist"] = checklist_json
@@ -193,27 +247,36 @@ def send_alert_email(to_email: str, subject: str, city: str,
     }
     c = colors.get(urgency, colors["medium"])
 
-    html = f"""<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f7f9f5;font-family:Arial,sans-serif;">
+    # Everything below came from a scraped page, the LLM, or the DB. Escape it.
+    city_e = esc(city)
+    headline_e = esc(headline)
+    detail_e = esc(detail)
+    link_html = source_link_html(
+        source_url,
+        style="display:inline-block;background:#1a4d2e;color:white;text-decoration:none;font-size:0.8rem;font-weight:700;padding:10px 20px;border-radius:7px;",
+    )
+
+    html_body = f"""<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f7f9f5;font-family:Arial,sans-serif;">
 <div style="max-width:560px;margin:40px auto;background:white;border:1.5px solid #d8e8cf;border-radius:12px;overflow:hidden;">
   <div style="background:#1a4d2e;padding:20px 28px;">
     <span style="font-weight:800;font-size:1rem;color:white;">STR<span style="color:#4db87a;">Watch</span></span>
     <span style="margin-left:12px;font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.5);">Regulation Alert</span>
   </div>
   <div style="padding:16px 28px 0;">
-    <span style="display:inline-block;background:{c['bg']};border:1px solid {c['border']};color:{c['text']};font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;padding:5px 12px;border-radius:100px;font-weight:600;">{c['label']} · {city}</span>
+    <span style="display:inline-block;background:{c['bg']};border:1px solid {c['border']};color:{c['text']};font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;padding:5px 12px;border-radius:100px;font-weight:600;">{c['label']} · {city_e}</span>
   </div>
   <div style="padding:16px 28px 12px;">
-    <h2 style="margin:0;font-size:1.05rem;font-weight:700;color:#0f1a0a;line-height:1.4;">{headline}</h2>
+    <h2 style="margin:0;font-size:1.05rem;font-weight:700;color:#0f1a0a;line-height:1.4;">{headline_e}</h2>
   </div>
   <div style="margin:0 28px 20px;background:#f7f9f5;border:1px solid #d8e8cf;border-radius:8px;padding:14px 16px;">
-    <p style="margin:0;font-size:0.88rem;color:#374530;line-height:1.65;">{detail}</p>
+    <p style="margin:0;font-size:0.88rem;color:#374530;line-height:1.65;">{detail_e}</p>
   </div>
   <div style="padding:0 28px 20px;">
-    <a href="{source_url}" style="display:inline-block;background:#1a4d2e;color:white;text-decoration:none;font-size:0.8rem;font-weight:700;padding:10px 20px;border-radius:7px;">View source →</a>
+    {link_html}
   </div>
   {f'<div style="padding:0 28px 20px;">{checklist_html}</div>' if checklist_html else ''}
   <div style="background:#f7f9f5;border-top:1px solid #d8e8cf;padding:14px 28px;">
-    <p style="margin:0;font-size:0.7rem;color:#9aab90;">You're receiving this because you're watching <strong>{city}</strong> on STRWatch.<br>
+    <p style="margin:0;font-size:0.7rem;color:#9aab90;">You're receiving this because you're watching <strong>{city_e}</strong> on STRWatch.<br>
     <a href="https://app.strwatch.io/dashboard/settings" style="color:#2d7a4f;">Manage notifications</a></p>
   </div>
 </div></body></html>"""
@@ -223,7 +286,7 @@ def send_alert_email(to_email: str, subject: str, city: str,
     resp = requests.post(
         "https://api.resend.com/emails",
         headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
-        json={"from": RESEND_FROM, "to": [to_email], "subject": f"[STRWatch] {subject}", "html": html, "text": text},
+        json={"from": RESEND_FROM, "to": [to_email], "subject": f"[STRWatch] {subject}", "html": html_body, "text": text},
         timeout=15,
     )
     if resp.ok:
@@ -240,9 +303,9 @@ def send_city_alert(city: str, subject: str, headline: str,
     user_ids = get_users_for_city(city)
     if not user_ids:
         log.info("No users watching %s", city)
-        return {"city": city, "users": 0, "sent": 0, "sms_sent": 0, "failed": 0}
+        return {"city": city, "users": 0, "sent": 0, "sms_sent": 0, "failed": 0, "queued": 0}
 
-    sent = sms_sent = failed = 0
+    sent = sms_sent = failed = queued = 0
     for user_id in user_ids:
         email = get_user_email(user_id)
         prefs = get_user_preferences(user_id)
@@ -251,7 +314,26 @@ def send_city_alert(city: str, subject: str, headline: str,
         email_enabled = prefs.get("email_enabled", True)
         sms_enabled = prefs.get("sms_enabled", True)
         phone = prefs.get("phone", "")
-        is_pro = tier in ("pro", "agency")
+        is_pro = tier in REALTIME_TIERS
+        realtime = is_realtime_tier(tier)
+
+        # Explicit free (or expired-trial) users get no real-time email. The
+        # alert row is still inserted with sent_at NULL and goes out in the
+        # weekly digest. Unknown tier (lookup failed) fails open to real-time.
+        if not realtime:
+            log.info("User %s is tier=%s — queuing for weekly digest", user_id, tier)
+            saved = save_alert_to_supabase(
+                user_id=user_id, city=city, subject=subject,
+                headline=headline, detail=detail, source_url=source_url,
+                urgency=urgency, checklist_json=checklist_html if checklist_html else None,
+                sent=False,
+            )
+            if saved:
+                queued += 1
+            else:
+                log.error("Failed to queue digest alert for user %s", user_id)
+                failed += 1
+            continue
 
         # Send email (if enabled)
         email_ok = False
@@ -279,8 +361,10 @@ def send_city_alert(city: str, subject: str, headline: str,
             urgency=urgency, checklist_json=checklist_html if checklist_html else None,
         )
 
-    log.info("Done — city: %s | emails: %d | sms: %d | failed: %d", city, sent, sms_sent, failed)
-    return {"city": city, "users": len(user_ids), "sent": sent, "sms_sent": sms_sent, "failed": failed}
+    log.info("Done — city: %s | emails: %d | sms: %d | failed: %d | queued for digest: %d",
+             city, sent, sms_sent, failed, queued)
+    return {"city": city, "users": len(user_ids), "sent": sent, "sms_sent": sms_sent,
+            "failed": failed, "queued": queued}
 
 
 if __name__ == "__main__":

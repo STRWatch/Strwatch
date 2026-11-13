@@ -17,3 +17,7 @@ if SCRAPER_ROOT not in sys.path:
 # alerts.router / alerts.reminders raise at import when SUPABASE_URL is unset.
 # Tests mock every HTTP call, so any placeholder value will do.
 os.environ.setdefault("SUPABASE_URL", "https://test-project.supabase.co")
+# router.get_users_for_city / get_user_email short-circuit to [] / None when
+# these are unset, which makes the mocked-HTTP tests fail for the wrong reason.
+os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key")
+os.environ.setdefault("CLERK_SECRET_KEY", "sk_test_placeholder")

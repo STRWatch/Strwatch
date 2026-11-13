@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { addDeadline, removeDeadline } from './actions'
+import { safeHref } from '@/lib/safeHref'
 
 const CATEGORY_LABELS: Record<string, {label:string;bg:string;border:string;text:string}> = {
   permit:       {label:'Permit',bg:'#eef3ff',border:'#c8d8f7',text:'#3a5cb8'},
@@ -171,6 +172,8 @@ export default function DeadlinesClient({
             const urgency = getUrgency(d.deadline_date)
             const cat = CATEGORY_LABELS[d.category] || CATEGORY_LABELS.permit
             const isCustom = d.user_id !== null && d.user_id !== undefined
+            // City-level rows are written outside the app; never render a raw href.
+            const sourceHref = safeHref(d.source_url)
             return (
               <div key={d.id} style={{background:'white',border:`1.5px solid ${isCustom ? '#d4c2f5' : 'var(--border)'}`,borderRadius:'12px',padding:'20px 24px',display:'flex',gap:'16px',alignItems:'flex-start'}}>
                 {/* Date column */}
@@ -197,9 +200,11 @@ export default function DeadlinesClient({
                   {d.description && (
                     <div style={{fontSize:'0.82rem',color:'var(--text-mid)',lineHeight:1.6,marginBottom:'6px'}}>{d.description}</div>
                   )}
-                  {d.source_url && (
-                    <a href={d.source_url} target="_blank" rel="noopener noreferrer" style={{fontFamily:'var(--font-mono)',fontSize:'0.58rem',color:'var(--green)',letterSpacing:'0.05em'}}>View source →</a>
-                  )}
+                  {sourceHref ? (
+                    <a href={sourceHref} target="_blank" rel="noopener noreferrer" style={{fontFamily:'var(--font-mono)',fontSize:'0.58rem',color:'var(--green)',letterSpacing:'0.05em'}}>View source →</a>
+                  ) : d.source_url ? (
+                    <span style={{fontFamily:'var(--font-mono)',fontSize:'0.58rem',color:'var(--text-faint)',letterSpacing:'0.05em'}}>Source: {String(d.source_url)}</span>
+                  ) : null}
                 </div>
 
                 {/* Delete button for custom deadlines */}
