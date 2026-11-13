@@ -24,6 +24,11 @@ import json
 import logging
 from typing import Optional
 
+# Imported at module level on purpose: a missing package must fail at import
+# (caught by notify._generate_checklist_safe, alert still goes out without a
+# checklist) rather than mid-send after the snapshot hash has been saved.
+import nh3
+
 log = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "claude-sonnet-5-5"
@@ -197,7 +202,6 @@ def sanitize_checklist_html(raw_html: str) -> str:
     """
     if not raw_html:
         return ""
-    import nh3
     return nh3.clean(
         raw_html,
         tags=CHECKLIST_TAGS,

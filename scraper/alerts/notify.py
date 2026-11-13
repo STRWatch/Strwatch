@@ -110,6 +110,18 @@ def _generate_checklist_safe(city: str, title: str, keywords: list,
         return {}
 
 
+def _format_checklist_safe(checklist: dict) -> str:
+    """format_checklist_html, but never raise — fall back to no checklist."""
+    if not checklist:
+        return ""
+    try:
+        from alerts.checklist import format_checklist_html
+        return format_checklist_html(checklist)
+    except Exception as e:
+        log.error("Checklist formatting error: %s", e)
+        return ""
+
+
 # ── Alert builders ────────────────────────────────────────────────────────────
 
 def alert_page_changed(name: str, city: str, url: str, priority: str):
@@ -125,10 +137,7 @@ def alert_page_changed(name: str, city: str, url: str, priority: str):
         source_url=url,
         alert_type="page_change",
     )
-    checklist_html = ""
-    if checklist:
-        from alerts.checklist import format_checklist_html
-        checklist_html = format_checklist_html(checklist)
+    checklist_html = _format_checklist_safe(checklist)
 
     subject = f"[STRWatch] {city} regulation page changed — {name}"
     urgency = "🚨 HIGH PRIORITY" if priority == "high" else "ℹ️"
@@ -285,10 +294,7 @@ def alert_new_legislation(city: str, bill_id: str, title: str, url: str, keyword
         source_url=url,
         alert_type="legislation",
     )
-    checklist_html = ""
-    if checklist:
-        from alerts.checklist import format_checklist_html
-        checklist_html = format_checklist_html(checklist)
+    checklist_html = _format_checklist_safe(checklist)
 
     kw_str = ", ".join(keywords[:5])
     subject = f"[STRWatch] {city}: New STR legislation — {bill_id}"
