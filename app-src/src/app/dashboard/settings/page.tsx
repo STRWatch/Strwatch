@@ -15,6 +15,13 @@ export default async function SettingsPage() {
     .eq('user_id', userId)
     .single()
 
+  const { data: tierRow } = await supabase
+    .from('user_tiers')
+    .select('stripe_customer_id')
+    .eq('user_id', userId)
+    .maybeSingle()
+  const hasBilling = !!tierRow?.stripe_customer_id
+
   const { tier, isPaid, isAgency, isTrialActive } = await getEffectiveTier(userId)
   // Must match the server gate in savePreferences: paid, agency, or active Pro trial.
   const isPro = isPaid || isAgency || isTrialActive
@@ -25,5 +32,6 @@ export default async function SettingsPage() {
     emailEnabled={prefs?.email_enabled ?? true}
     isPro={isPro}
     tier={tier}
+    hasBilling={hasBilling}
   />
 }

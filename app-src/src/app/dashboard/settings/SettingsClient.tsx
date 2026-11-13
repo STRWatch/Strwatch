@@ -4,9 +4,9 @@ import { useState, useTransition } from 'react'
 import { savePreferences } from './actions'
 
 export default function SettingsClient({
-  phone: initialPhone, smsEnabled: initialSms, emailEnabled: initialEmail, isPro, tier,
+  phone: initialPhone, smsEnabled: initialSms, emailEnabled: initialEmail, isPro, tier, hasBilling = false,
 }: {
-  phone: string; smsEnabled: boolean; emailEnabled: boolean; isPro: boolean; tier: string;
+  phone: string; smsEnabled: boolean; emailEnabled: boolean; isPro: boolean; tier: string; hasBilling?: boolean;
 }) {
   const [phone, setPhone] = useState(initialPhone)
   const [smsEnabled, setSmsEnabled] = useState(initialSms)
@@ -14,6 +14,26 @@ export default function SettingsClient({
   const [isPending, startTransition] = useTransition()
   const [feedback, setFeedback] = useState('')
   const [saved, setSaved] = useState(false)
+  const [portalPending, setPortalPending] = useState(false)
+  const [portalError, setPortalError] = useState('')
+
+  async function handleManageBilling() {
+    setPortalPending(true)
+    setPortalError('')
+    try {
+      const res = await fetch('/api/stripe/portal', { method: 'POST' })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok || !body.url) {
+        setPortalError(body.error || 'Could not open billing portal')
+        setPortalPending(false)
+        return
+      }
+      window.location.href = body.url
+    } catch {
+      setPortalError('Could not open billing portal')
+      setPortalPending(false)
+    }
+  }
 
   function formatPhone(value: string): string {
     const digits = value.replace(/\D/g, '')
@@ -169,6 +189,32 @@ export default function SettingsClient({
           )}
         </div>
       </div>
+
+      {hasBilling && (
+        <div style={{background:'white',border:'1.5px solid var(--border)',borderRadius:'12px',overflow:'hidden',marginTop:'20px'}}>
+          <div style={{padding:'20px 24px',borderBottom:'1px solid var(--border)'}}>
+            <div style={{fontFamily:'var(--font-syne)',fontWeight:700,fontSize:'0.95rem',color:'var(--ink)',marginBottom:'2px'}}>Billing</div>
+            <div style={{fontFamily:'var(--font-mono)',fontSize:'0.58rem',color:'var(--text-faint)',letterSpacing:'0.05em'}}>Current plan: {tier}</div>
+          </div>
+          <div style={{padding:'18px 24px',display:'flex',alignItems:'center',gap:'12px'}}>
+            <button
+              onClick={handleManageBilling}
+              disabled={portalPending}
+              style={{
+                fontFamily:'var(--font-syne)',fontWeight:700,fontSize:'0.75rem',
+                padding:'10px 24px',background:'white',color:'var(--green-deep)',
+                borderRadius:'8px',border:'1.5px solid var(--green-deep)',cursor:'pointer',
+              }}
+            >
+              {portalPending ? 'Opening...' : 'Manage billing'}
+            </button>
+            <span style={{fontSize:'0.78rem',color:'var(--text-muted)'}}>Update your card, view invoices, or cancel.</span>
+            {portalError && (
+              <span style={{fontFamily:'var(--font-mono)',fontSize:'0.62rem',letterSpacing:'0.05em',color:'#b84040'}}>{portalError}</span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
