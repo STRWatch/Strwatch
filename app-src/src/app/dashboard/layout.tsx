@@ -1,5 +1,6 @@
 import { UserButton } from '@clerk/nextjs'
 import { auth } from '@clerk/nextjs/server'
+import { after } from 'next/server'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 
@@ -32,7 +33,8 @@ async function touchLastLogin(userId: string): Promise<void> {
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth()
-  if (userId) await touchLastLogin(userId)
+  // Runs after the response is sent so the write never delays the render.
+  if (userId) after(() => touchLastLogin(userId))
   return (
     <div style={{minHeight:'100vh', background:'#f7f9f5', display:'flex', flexDirection:'column'}}>
       <nav style={{
