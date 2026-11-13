@@ -518,6 +518,52 @@ def alert_sandiego_removals(licenses: list):
 
 # ── Alert routing (calls router.send_city_alert for real user emails) ─────────
 
+# Urgency is a scraper decision. The LLM checklist may lower it (a benign
+# page edit the model reads as "low") but never raise it: the title it reads
+# is third-party page/Legistar text, and urgency == "high" pages Pro users.
+URGENCY_RANK = {"low": 0, "medium": 1, "high": 2}
+
+# Legislation keywords that mean a restriction, cap or enforcement change
+# rather than a routine mention of STRs. Matched case-insensitively against
+# the keyword hits the scraper found.
+HIGH_PRIORITY_KEYWORDS = {
+    "permit cap", "overlay district", "non-owner occupied", "owner-occupied",
+    "transient occupancy", "moratorium", "ban", "prohibit", "revocation",
+    "revoke", "enforcement", "fine", "penalty",
+}
+
+
+def clamp_urgency(scraper_priority: str, llm_urgency) -> str:
+    """Final urgency: the lower of the scraper's priority and the LLM's.
+
+    Unknown scraper priorities read as "medium"; an unknown/missing LLM value
+    leaves the scraper priority untouched.
+    """
+    base = scraper_priority if scraper_priority in URGENCY_RANK else "medium"
+    if not isinstance(llm_urgency, str) or llm_urgency not in URGENCY_RANK:
+        return base
+    return llm_urgency if URGENCY_RANK[llm_urgency] < URGENCY_RANK[base] else base
+
+
+def legislation_priority(keywords) -> str:
+    """Keyword-derived priority for a legislation hit: "high" only when a
+    restriction/enforcement keyword matched, otherwise "medium"."""
+    for kw in keywords or []:
+        if str(kw).strip().lower() in HIGH_PRIORITY_KEYWORDS:
+            return "high"
+    return "medium"
+
+
+def _detail_with_summary(fixed: str, checklist) -> str:
+    """Scraper-authored first sentence, then the LLM summary (if any) after it.
+    The summary never replaces the fixed sentence, so an injected title cannot
+    rewrite what the alert says happened."""
+    summary = checklist.get("summary") if isinstance(checklist, dict) else None
+    if isinstance(summary, str) and summary.strip():
+        return f"{fixed} {summary.strip()}"
+    return fixed
+
+
 def route_legislation_alert(city: str, title: str, url: str, keywords: list, checklist: dict = None):
     try:
         from alerts import router
@@ -526,17 +572,15 @@ def route_legislation_alert(city: str, title: str, url: str, keywords: list, che
             from alerts.checklist import format_checklist_html
             checklist_html = format_checklist_html(checklist)
 
-        detail = f"STRWatch detected new STR-related legislation in {city}. Keywords matched: {', '.join(keywords[:3])}."
-        if checklist and checklist.get("summary"):
-            detail = checklist["summary"]
-
+        fixed = f"STRWatch detected new STR-related legislation in {city}. Keywords matched: {', '.join(keywords[:3])}."
+        priority = legislation_priority(keywords)
         router.send_city_alert(
             city=city,
             subject=f"{city} — new STR legislation detected",
             headline=title,
-            detail=detail,
+            detail=_detail_with_summary(fixed, checklist),
             source_url=url,
-            urgency=checklist.get("urgency", "high") if checklist else "high",
+            urgency=clamp_urgency(priority, checklist.get("urgency") if checklist else None),
             checklist_html=checklist_html,
         )
     except Exception as e:
@@ -551,17 +595,14 @@ def route_page_change_alert(city: str, name: str, url: str, priority: str, check
             from alerts.checklist import format_checklist_html
             checklist_html = format_checklist_html(checklist)
 
-        detail = f"STRWatch detected a change on a monitored government page in {city}. Review the source for regulation updates."
-        if checklist and checklist.get("summary"):
-            detail = checklist["summary"]
-
+        fixed = f"STRWatch detected a change on a monitored government page in {city}. Review the source for regulation updates."
         router.send_city_alert(
             city=city,
             subject=f"{city} — regulation page updated",
             headline=f"{name} has been updated",
-            detail=detail,
+            detail=_detail_with_summary(fixed, checklist),
             source_url=url,
-            urgency=priority,
+            urgency=clamp_urgency(priority, checklist.get("urgency") if checklist else None),
             checklist_html=checklist_html,
         )
     except Exception as e:
