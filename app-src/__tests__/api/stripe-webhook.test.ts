@@ -68,3 +68,23 @@ describe('POST /api/stripe/webhook customer.subscription.deleted', () => {
     expect(state.upserts[0]).toMatchObject({ user_id: 'user_legacy', tier: 'free' })
   })
 })
+
+describe('POST /api/stripe/webhook checkout.session.completed', () => {
+  beforeEach(() => {
+    process.env.STRIPE_SECRET_KEY = 'sk_test_x'
+    process.env.STRIPE_WEBHOOK_SECRET = 'whsec_x'
+    state.upserts = []
+  })
+
+  it('persists founding_price from session metadata', async () => {
+    state.event = { type: 'checkout.session.completed', data: { object: { customer: 'cus_f', metadata: { userId: 'user_f', tier: 'pro', founding: 'true' } } } }
+    await post()
+    expect(state.upserts[0]).toMatchObject({ user_id: 'user_f', tier: 'pro', stripe_customer_id: 'cus_f', founding_price: true, trial_ends_at: null })
+  })
+
+  it('stores founding_price false for a regular checkout', async () => {
+    state.event = { type: 'checkout.session.completed', data: { object: { customer: 'cus_r', metadata: { userId: 'user_r', tier: 'agency' } } } }
+    await post()
+    expect(state.upserts[0]).toMatchObject({ user_id: 'user_r', tier: 'agency', founding_price: false })
+  })
+})

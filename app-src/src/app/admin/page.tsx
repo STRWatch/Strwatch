@@ -11,6 +11,7 @@ type TierRow = {
   created_at?: string | null
   stripe_customer_id?: string | null
   founding_member?: boolean | null
+  founding_price?: boolean | null
   last_login_at?: string | null
 }
 type MarketRow = { user_id: string; city: string }
@@ -57,7 +58,7 @@ function isoWeekKey(d: Date): string {
   return `${date.getUTCFullYear()}-W${String(week).padStart(2, '0')}`
 }
 
-const TIER_SELECT = 'user_id, tier, trial_ends_at, created_at, stripe_customer_id, founding_member, last_login_at'
+const TIER_SELECT = 'user_id, tier, trial_ends_at, created_at, stripe_customer_id, founding_member, founding_price, last_login_at'
 
 export default async function AdminPage() {
   await requireAdmin()
@@ -137,7 +138,9 @@ export default async function AdminPage() {
 
   const signups7d = tiers.filter(t => t.created_at && t.created_at >= sevenDaysAgo).length
   const signups30d = tiers.filter(t => t.created_at && t.created_at >= thirtyDaysAgo).length
-  const mrr = counts.pro_paid * 29 + counts.agency * 99
+  // Founding members pay $19/mo locked; everyone else on paid Pro pays $29.
+  const foundingPaid = classified.filter(t => t.classification === 'pro_paid' && t.founding_price).length
+  const mrr = foundingPaid * 19 + (counts.pro_paid - foundingPaid) * 29 + counts.agency * 99
 
   // ── Effective tier counts (same logic as getEffectiveTier) ──
   const now = new Date()

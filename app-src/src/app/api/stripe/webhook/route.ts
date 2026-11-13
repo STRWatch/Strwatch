@@ -57,6 +57,8 @@ export async function POST(req: NextRequest) {
           tier,
           trial_ends_at: null,
           stripe_customer_id: customerId(session.customer),
+          // Founding checkouts bill $19 instead of $29; admin MRR reads this.
+          founding_price: session.metadata?.founding === 'true',
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'user_id' }
