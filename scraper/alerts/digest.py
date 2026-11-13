@@ -39,25 +39,42 @@ def _headers() -> dict:
     }
 
 
+PAGE_SIZE = 1000
+PENDING_SELECT = "id,user_id,city,subject,headline,detail,source_url,urgency"
+
+
 def fetch_pending_alerts() -> List[dict]:
-    """All alerts rows with sent_at IS NULL, oldest first."""
+    """All alerts rows with sent_at IS NULL, paginated by id (id > last_id)."""
     if not router.SUPABASE_SERVICE_KEY:
         log.warning("SUPABASE_SERVICE_ROLE_KEY not set — nothing to do")
         return []
-    resp = requests.get(
-        f"{router.SUPABASE_URL}/rest/v1/alerts",
-        headers=_headers(),
-        params={
+    rows: List[dict] = []
+    last_id = None
+    while True:
+        params = {
             "sent_at": "is.null",
-            "select": "id,user_id,city,subject,headline,detail,source_url,urgency",
+            "select": PENDING_SELECT,
             "order": "id.asc",
-        },
-        timeout=15,
-    )
-    if not resp.ok:
-        log.error("Failed to fetch pending alerts: %s %s", resp.status_code, resp.text)
-        return []
-    return resp.json()
+            "limit": str(PAGE_SIZE),
+        }
+        if last_id is not None:
+            params["id"] = f"gt.{last_id}"
+        resp = requests.get(
+            f"{router.SUPABASE_URL}/rest/v1/alerts",
+            headers=_headers(),
+            params=params,
+            timeout=15,
+        )
+        if not resp.ok:
+            log.error("Failed to fetch pending alerts: %s %s", resp.status_code, resp.text)
+            return rows
+        page = resp.json() or []
+        rows.extend(page)
+        if len(page) < PAGE_SIZE:
+            return rows
+        last_id = page[-1].get("id")
+        if last_id is None:
+            return rows
 
 
 def group_alerts(rows: List[dict]) -> "OrderedDict[str, OrderedDict[str, List[dict]]]":
@@ -173,6 +190,40 @@ def mark_sent(alert_ids: List) -> bool:
     return True
 
 
+def _process_user(user_id: str, by_city, dry_run: bool) -> str:
+    """Handle one user's digest. Returns 'sent' | 'skipped' | 'failed' | 'dry'."""
+    ids = [a["id"] for cities in by_city.values() for a in cities if a.get("id") is not None]
+    prefs = router.get_user_preferences(user_id)
+    email_enabled = prefs.get("email_enabled", True)
+
+    if not email_enabled:
+        if dry_run:
+            log.info("DRY RUN: %s has email disabled — would mark %d alert(s) sent without emailing",
+                     user_id, len(ids))
+            return "dry"
+        log.info("User %s has email disabled — marking %d alert(s) sent without emailing",
+                 user_id, len(ids))
+        mark_sent(ids)
+        return "skipped"
+
+    email_addr = router.get_user_email(user_id)
+    email = build_digest_email(by_city)
+
+    if dry_run:
+        log.info("DRY RUN: would send to %s (%s): %s — %d alert(s) in %s",
+                 user_id, email_addr or "no email", email["subject"], len(ids), list(by_city.keys()))
+        return "dry"
+
+    if not email_addr:
+        log.warning("No email for user %s — leaving %d alert(s) pending", user_id, len(ids))
+        return "failed"
+
+    if send_digest_email(email_addr, email):
+        mark_sent(ids)
+        return "sent"
+    return "failed"
+
+
 def run(dry_run: bool = False) -> dict:
     """Send one digest per user with pending (sent_at NULL) alerts."""
     rows = fetch_pending_alerts()
@@ -180,32 +231,22 @@ def run(dry_run: bool = False) -> dict:
     log.info("Digest: %d pending alert(s) for %d user(s)%s",
              len(rows), len(by_user), " [DRY RUN]" if dry_run else "")
 
-    users = sent = failed = marked = 0
+    counts = {"users": 0, "sent": 0, "skipped": 0, "failed": 0, "marked": 0}
     for user_id, by_city in by_user.items():
-        users += 1
-        ids = [a["id"] for cities in by_city.values() for a in cities if a.get("id") is not None]
-        email_addr = router.get_user_email(user_id)
-        email = build_digest_email(by_city)
+        counts["users"] += 1
+        n = sum(len(v) for v in by_city.values())
+        try:
+            outcome = _process_user(user_id, by_city, dry_run)
+        except Exception as e:  # noqa: BLE001 — one user must not abort the run
+            log.error("Digest failed for user %s: %s", user_id, e, exc_info=True)
+            outcome = "failed"
+        if outcome in ("sent", "skipped"):
+            counts[outcome] += 1
+            counts["marked"] += n
+        elif outcome == "failed":
+            counts["failed"] += 1
 
-        if dry_run:
-            log.info("DRY RUN: would send to %s (%s): %s — %d alert(s) in %s",
-                     user_id, email_addr or "no email", email["subject"], len(ids), list(by_city.keys()))
-            continue
-
-        if not email_addr:
-            log.warning("No email for user %s — leaving %d alert(s) pending", user_id, len(ids))
-            failed += 1
-            continue
-
-        if send_digest_email(email_addr, email):
-            sent += 1
-            if mark_sent(ids):
-                marked += len(ids)
-        else:
-            failed += 1
-
-    result = {"pending": len(rows), "users": users, "sent": sent, "failed": failed,
-              "marked": marked, "dry_run": dry_run}
+    result = {"pending": len(rows), **counts, "dry_run": dry_run}
     log.info("Digest done: %s", result)
     return result
 

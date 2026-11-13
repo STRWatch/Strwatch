@@ -208,6 +208,19 @@ class TestDigestEmail:
         assert "1 update in 1 market" in build_digest_email(group_alerts(ROWS)["u2"])["subject"]
 
 
+def _prefs_ok(*_a, **_k):
+    return {"email_enabled": True}
+
+
+@pytest.fixture(autouse=True)
+def _default_prefs(request):
+    if "TestDigestRun" in request.node.nodeid or "TestDigestPrefs" in request.node.nodeid:
+        with patch('alerts.digest.router.get_user_preferences', side_effect=_prefs_ok):
+            yield
+    else:
+        yield
+
+
 class TestDigestRun:
     @patch('alerts.digest.mark_sent', return_value=True)
     @patch('alerts.digest.send_digest_email', return_value=True)
@@ -220,7 +233,8 @@ class TestDigestRun:
         assert mock_send.call_args_list[0][0][0] == "one@example.com"
         assert mock_mark.call_args_list[0][0][0] == [1, 4, 3]
         assert mock_mark.call_args_list[1][0][0] == [2]
-        assert result == {"pending": 4, "users": 2, "sent": 2, "failed": 0, "marked": 4, "dry_run": False}
+        assert result == {"pending": 4, "users": 2, "sent": 2, "skipped": 0, "failed": 0,
+                          "marked": 4, "dry_run": False}
 
     @patch('alerts.digest.mark_sent', return_value=True)
     @patch('alerts.digest.send_digest_email', return_value=True)
@@ -270,3 +284,85 @@ class TestDigestRun:
         from alerts.digest import fetch_pending_alerts
         assert fetch_pending_alerts() == ROWS
         assert mock_get.call_args[1]["params"]["sent_at"] == "is.null"
+        assert mock_get.call_args[1]["params"]["limit"] == "1000"
+        assert "id" not in mock_get.call_args[1]["params"]
+
+    @patch('alerts.digest.requests.get')
+    def test_fetch_paginates_by_id(self, mock_get):
+        import alerts.digest as d
+        page1 = [{"id": i, "user_id": "u"} for i in range(1, d.PAGE_SIZE + 1)]
+        page2 = [{"id": d.PAGE_SIZE + 1, "user_id": "u"}]
+        r1, r2 = MagicMock(ok=True), MagicMock(ok=True)
+        r1.json.return_value = page1
+        r2.json.return_value = page2
+        mock_get.side_effect = [r1, r2]
+        rows = d.fetch_pending_alerts()
+        assert len(rows) == d.PAGE_SIZE + 1
+        assert mock_get.call_count == 2
+        assert mock_get.call_args_list[1][1]["params"]["id"] == f"gt.{d.PAGE_SIZE}"
+
+    @patch('alerts.digest.requests.get')
+    def test_fetch_stops_on_short_page(self, mock_get):
+        r = MagicMock(ok=True)
+        r.json.return_value = ROWS
+        mock_get.return_value = r
+        from alerts.digest import fetch_pending_alerts
+        assert fetch_pending_alerts() == ROWS
+        assert mock_get.call_count == 1
+
+
+class TestDigestPrefs:
+    @patch('alerts.digest.mark_sent', return_value=True)
+    @patch('alerts.digest.send_digest_email', return_value=True)
+    @patch('alerts.digest.router.get_user_email', return_value="x@example.com")
+    @patch('alerts.digest.fetch_pending_alerts', return_value=ROWS)
+    def test_email_disabled_marks_sent_without_sending(self, _fetch, _email, mock_send, mock_mark):
+        from alerts.digest import run
+        with patch('alerts.digest.router.get_user_preferences',
+                   side_effect=lambda uid: {"email_enabled": uid != "u1"}):
+            result = run()
+        # u1 skipped (rows 1,4,3 marked, no email); u2 sent
+        assert mock_send.call_count == 1
+        assert mock_send.call_args[0][0] == "x@example.com"
+        assert mock_mark.call_args_list[0][0][0] == [1, 4, 3]
+        assert mock_mark.call_args_list[1][0][0] == [2]
+        assert result["sent"] == 1 and result["skipped"] == 1 and result["marked"] == 4
+
+    @patch('alerts.digest.mark_sent', return_value=True)
+    @patch('alerts.digest.send_digest_email', return_value=True)
+    @patch('alerts.digest.router.get_user_email', return_value="x@example.com")
+    @patch('alerts.digest.fetch_pending_alerts', return_value=ROWS)
+    def test_email_disabled_dry_run_marks_nothing(self, _fetch, _email, mock_send, mock_mark):
+        from alerts.digest import run
+        with patch('alerts.digest.router.get_user_preferences', return_value={"email_enabled": False}):
+            run(dry_run=True)
+        mock_send.assert_not_called()
+        mock_mark.assert_not_called()
+
+    @patch('alerts.digest.mark_sent', return_value=True)
+    @patch('alerts.digest.send_digest_email', return_value=True)
+    @patch('alerts.digest.fetch_pending_alerts', return_value=ROWS)
+    def test_one_user_exception_does_not_abort_run(self, _fetch, mock_send, mock_mark):
+        from alerts.digest import run
+
+        def clerk(uid):
+            if uid == "u1":
+                raise RuntimeError("Clerk 500")
+            return "two@example.com"
+
+        with patch('alerts.digest.router.get_user_email', side_effect=clerk):
+            result = run()
+        assert mock_send.call_count == 1
+        assert mock_send.call_args[0][0] == "two@example.com"
+        assert mock_mark.call_args[0][0] == [2]
+        assert result["failed"] == 1 and result["sent"] == 1 and result["users"] == 2
+
+    @patch('alerts.digest.mark_sent', return_value=True)
+    @patch('alerts.digest.send_digest_email', side_effect=RuntimeError("Resend down"))
+    @patch('alerts.digest.router.get_user_email', return_value="x@example.com")
+    @patch('alerts.digest.fetch_pending_alerts', return_value=ROWS)
+    def test_resend_exception_counts_failed_and_leaves_rows(self, _fetch, _email, _send, mock_mark):
+        from alerts.digest import run
+        result = run()
+        mock_mark.assert_not_called()
+        assert result["failed"] == 2 and result["sent"] == 0
