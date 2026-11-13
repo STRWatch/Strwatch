@@ -53,11 +53,16 @@ export default async function DashboardPage() {
     .order('id', { ascending: false })
     .limit(10)
   if (alertsError) console.error('dashboard alerts query error:', alertsError)
+  // Sent alerts this month: exact count, independent of the 10-row recent list.
   const thisMonth = new Date(); thisMonth.setDate(1); thisMonth.setHours(0,0,0,0)
-  const alertsThisMonth = (alerts||[]).filter(a => {
-    const ts = alertDate(a)
-    return ts !== null && ts >= thisMonth
-  }).length
+  const { count: alertsThisMonthCount, error: alertsCountError } = await supabase
+    .from('alerts')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .gte('created_at', thisMonth.toISOString())
+    .not('sent_at', 'is', null)
+  if (alertsCountError) console.error('dashboard alerts count error:', alertsCountError)
+  const alertsThisMonth = alertsThisMonthCount ?? 0
   const marketCount = (markets||[]).length
   const userCities = (markets || []).map((m: {city:string}) => m.city)
 
