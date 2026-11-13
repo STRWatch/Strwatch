@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
 import { appUrl } from '@/lib/url'
+import { getEffectiveTier } from '@/lib/tier'
 
 type StripeEnv = {
   secretKey: string
@@ -45,21 +46,33 @@ export async function POST(req: NextRequest) {
   const priceId = priceIds[tier]
   if (!priceId) return NextResponse.json({ error: 'Invalid tier' }, { status: 400 })
 
-  const isFounding = tier === 'founding'
-  if (isFounding) {
-    const { data, error } = await createClient()
-      .from('user_tiers')
-      .select('founding_member')
-      .eq('user_id', userId)
-      .maybeSingle()
-    if (error) {
-      console.error('stripe/checkout founding lookup error:', error)
-      return NextResponse.json({ error: 'db' }, { status: 500 })
-    }
-    if (!data?.founding_member) {
-      return NextResponse.json({ error: 'Founding offer not available' }, { status: 403 })
-    }
+  // Paying subscribers change plans in the billing portal. A second checkout
+  // would mint a second subscription (and, without `customer`, a second Stripe
+  // customer); cancelling either one would then downgrade the user.
+  const { isPaid } = await getEffectiveTier(userId)
+  if (isPaid) {
+    return NextResponse.json({ error: 'use_billing_portal' }, { status: 409 })
   }
+
+  const { data: row, error: rowError } = await createClient()
+    .from('user_tiers')
+    .select('founding_member, stripe_customer_id')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (rowError) {
+    console.error('stripe/checkout user_tiers lookup error:', rowError)
+    return NextResponse.json({ error: 'db' }, { status: 500 })
+  }
+
+  const isFounding = tier === 'founding'
+  if (isFounding && !row?.founding_member) {
+    return NextResponse.json({ error: 'Founding offer not available' }, { status: 403 })
+  }
+  // Reuse the Stripe customer from an earlier subscription (e.g. a lapsed one)
+  // instead of letting Checkout create another.
+  const existingCustomer = typeof row?.stripe_customer_id === 'string' && row.stripe_customer_id
+    ? row.stripe_customer_id
+    : undefined
 
   // The webhook reads metadata.tier to set user_tiers.tier; founding checkouts grant 'pro'.
   const metadata: Record<string, string> = isFounding
@@ -69,6 +82,7 @@ export async function POST(req: NextRequest) {
     mode: 'subscription',
     payment_method_types: ['card'],
     line_items: [{ price: priceId, quantity: 1 }],
+    ...(existingCustomer ? { customer: existingCustomer } : {}),
     success_url: `${appUrl()}/dashboard?upgraded=true`,
     cancel_url: isFounding ? `${appUrl()}/dashboard/settings` : `${appUrl()}/dashboard/markets`,
     metadata,

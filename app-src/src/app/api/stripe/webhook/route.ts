@@ -70,10 +70,19 @@ export async function POST(req: NextRequest) {
   }
   if (event.type === 'customer.subscription.deleted') {
     const sub = event.data.object as any
+    const stripeCustomerId = customerId(sub.customer)
+    if (stripeCustomerId) {
+      // Another subscription on the same customer (plan change, or a second
+      // checkout) still bills them: skip the downgrade. The deleted one is
+      // already 'canceled', so it is excluded by status: 'active'.
+      const remaining = await stripe.subscriptions.list({ customer: stripeCustomerId, status: 'active', limit: 1 })
+      if (remaining.data.length > 0) {
+        return NextResponse.json({ received: true, skipped: 'active_subscription_remains' })
+      }
+    }
     let userId: string | null = sub.metadata?.userId || null
     if (!userId) {
       // Subscriptions created before subscription_data.metadata was set: resolve by customer
-      const stripeCustomerId = customerId(sub.customer)
       if (stripeCustomerId) {
         const { data, error } = await supabase
           .from('user_tiers')
