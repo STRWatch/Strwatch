@@ -2,6 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import sanitizeHtml from 'sanitize-html'
+import { safeHref } from '@/lib/safeHref'
 
 const URGENCY_COLORS: Record<string, {bg:string;border:string;text:string}> = {
   high:   {bg:'#fff0ee',border:'#f7c8c8',text:'#b84040'},
@@ -35,6 +36,7 @@ export default async function AlertsPage() {
           const c = URGENCY_COLORS[alert.urgency]||URGENCY_COLORS.medium
           const date = new Date(alert.sent_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})
           const hasChecklist = alert.checklist && alert.checklist.trim().length > 0
+          const sourceHref = safeHref(alert.source_url)
           return (
             <div key={alert.id} style={{padding:'20px',borderBottom:i<alerts.length-1?'1px solid var(--border)':'none'}}>
               <div style={{display:'flex',alignItems:'flex-start',gap:'12px'}}>
@@ -55,7 +57,9 @@ export default async function AlertsPage() {
                       })}}
                     />
                   )}
-                  {alert.source_url && <a href={alert.source_url} target="_blank" rel="noopener noreferrer" style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',color:'var(--green)',letterSpacing:'0.05em'}}>View source →</a>}
+                  {alert.source_url && (sourceHref
+                    ? <a href={sourceHref} target="_blank" rel="noopener noreferrer" style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',color:'var(--green)',letterSpacing:'0.05em'}}>View source →</a>
+                    : <span style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',color:'var(--text-faint)',letterSpacing:'0.05em',wordBreak:'break-all'}}>Source: {String(alert.source_url)}</span>)}
                 </div>
               </div>
             </div>

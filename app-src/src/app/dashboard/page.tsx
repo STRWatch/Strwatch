@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getEffectiveTier } from '@/lib/tier'
 import Link from 'next/link'
+import { safeHref } from '@/lib/safeHref'
 
 const URGENCY_COLORS: Record<string, {bg:string;border:string;text:string}> = {
   high:   {bg:'#fff0ee',border:'#f7c8c8',text:'#b84040'},
@@ -145,6 +146,7 @@ export default async function DashboardPage() {
         ) : (alerts||[]).slice(0,5).map((alert:any) => {
           const c = URGENCY_COLORS[alert.urgency]||URGENCY_COLORS.medium
           const date = new Date(alert.sent_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+          const sourceHref = safeHref(alert.source_url)
           return (
             <div key={alert.id} style={{padding:'16px 20px',borderBottom:'1px solid var(--border)',display:'flex',gap:'12px',alignItems:'flex-start'}}>
               <span style={{display:'inline-block',background:c.bg,border:`1px solid ${c.border}`,color:c.text,fontSize:'0.58rem',letterSpacing:'0.1em',textTransform:'uppercase',padding:'3px 8px',borderRadius:'100px',whiteSpace:'nowrap',marginTop:'2px'}}>{alert.urgency}</span>
@@ -152,7 +154,9 @@ export default async function DashboardPage() {
                 <div style={{fontFamily:'var(--font-syne)',fontWeight:600,fontSize:'0.88rem',color:'var(--ink)',marginBottom:'2px'}}>{alert.headline}</div>
                 <div style={{fontFamily:'var(--font-mono)',fontSize:'0.58rem',color:'var(--text-faint)',letterSpacing:'0.05em'}}>{alert.city} · {date}</div>
               </div>
-              {alert.source_url && <a href={alert.source_url} target="_blank" rel="noopener noreferrer" style={{fontFamily:'var(--font-mono)',fontSize:'0.58rem',color:'var(--green)',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>Source →</a>}
+              {alert.source_url && (sourceHref
+                ? <a href={sourceHref} target="_blank" rel="noopener noreferrer" style={{fontFamily:'var(--font-mono)',fontSize:'0.58rem',color:'var(--green)',letterSpacing:'0.05em',whiteSpace:'nowrap'}}>Source →</a>
+                : <span style={{fontFamily:'var(--font-mono)',fontSize:'0.58rem',color:'var(--text-faint)',letterSpacing:'0.05em',wordBreak:'break-all'}}>{String(alert.source_url)}</span>)}
             </div>
           )
         })}

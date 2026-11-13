@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { safeHref } from '@/lib/safeHref'
 
 const RISK_COLORS: Record<string, {bg:string;border:string;text:string;label:string}> = {
   low:    {bg:'#e8f5ee',border:'#c8ecd8',text:'#2d7a4f',label:'Low risk'},
@@ -230,7 +231,9 @@ function ReportView({ report, city, isEnriched, onClose }: {
                 <div key={i} style={{display:'flex',gap:'12px',alignItems:'center'}}>
                   <span style={{fontFamily:'var(--font-syne)',fontWeight:600,fontSize:'0.82rem',color:'var(--ink)',minWidth:'200px'}}>{contact.name}</span>
                   {contact.phone && <span style={{fontFamily:'var(--font-mono)',fontSize:'0.72rem',color:'var(--text-muted)'}}>{contact.phone}</span>}
-                  {contact.url && <a href={contact.url} target="_blank" rel="noopener noreferrer" style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',color:'var(--green)'}}>Website →</a>}
+                  {contact.url && (safeHref(contact.url)
+                    ? <a href={safeHref(contact.url)!} target="_blank" rel="noopener noreferrer" style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',color:'var(--green)'}}>Website →</a>
+                    : <span style={{fontFamily:'var(--font-mono)',fontSize:'0.6rem',color:'var(--text-faint)',wordBreak:'break-all'}}>{String(contact.url)}</span>)}
                 </div>
               ))}
             </div>
