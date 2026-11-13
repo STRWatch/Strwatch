@@ -283,11 +283,11 @@ export default async function AdminPage() {
         </div>
         <div style={card}>
           <div style={bigNum}>{signups7d}</div>
-          <div style={label}>Signups (7d)</div>
+          <div style={label}>First loads (7d)</div>
         </div>
         <div style={card}>
           <div style={bigNum}>{signups30d}</div>
-          <div style={label}>Signups (30d)</div>
+          <div style={label}>First loads (30d)</div>
         </div>
         <div style={card}>
           <div style={bigNum}>${mrr.toLocaleString()}</div>
@@ -323,7 +323,8 @@ export default async function AdminPage() {
           <div style={{ fontSize: '0.6rem', color: '#94a3b8', marginTop: '10px' }}>Expired, unpaid Pro trials count as Free (same rule as getEffectiveTier).</div>
         </div>
         <div style={card}>
-          <div style={sectionTitle}>Signups per ISO Week (last 12)</div>
+          <div style={sectionTitle}>First Dashboard Loads per ISO Week (last 12)</div>
+          <div style={{ fontSize: '0.6rem', color: '#94a3b8', marginTop: '-10px', marginBottom: '10px' }}>user_tiers.created_at is set on first dashboard load, not at Clerk signup.</div>
           {weeklySignups.map(([week, count], i) => (
             <div key={week} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: i < weeklySignups.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
               <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#334155' }}>{week}</span>
@@ -470,7 +471,7 @@ export default async function AdminPage() {
                 <th style={th}>Founding</th>
                 <th style={th}>Markets</th>
                 <th style={th}>Last login</th>
-                <th style={th}>Created</th>
+                <th style={th}>First dashboard load</th>
               </tr>
             </thead>
             <tbody>
@@ -502,7 +503,7 @@ export default async function AdminPage() {
             <thead>
               <tr>
                 <th style={th}>Email</th>
-                <th style={th}>Created</th>
+                <th style={th}>First dashboard load</th>
               </tr>
             </thead>
             <tbody>
