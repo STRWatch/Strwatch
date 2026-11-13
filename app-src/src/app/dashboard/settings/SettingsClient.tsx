@@ -4,9 +4,9 @@ import { useState, useTransition } from 'react'
 import { savePreferences } from './actions'
 
 export default function SettingsClient({
-  phone: initialPhone, smsEnabled: initialSms, emailEnabled: initialEmail, isPro, tier, hasBilling = false,
+  phone: initialPhone, smsEnabled: initialSms, emailEnabled: initialEmail, isPro, tier, hasBilling = false, showFoundingOffer = false,
 }: {
-  phone: string; smsEnabled: boolean; emailEnabled: boolean; isPro: boolean; tier: string; hasBilling?: boolean;
+  phone: string; smsEnabled: boolean; emailEnabled: boolean; isPro: boolean; tier: string; hasBilling?: boolean; showFoundingOffer?: boolean;
 }) {
   const [phone, setPhone] = useState(initialPhone)
   const [smsEnabled, setSmsEnabled] = useState(initialSms)
@@ -16,6 +16,30 @@ export default function SettingsClient({
   const [saved, setSaved] = useState(false)
   const [portalPending, setPortalPending] = useState(false)
   const [portalError, setPortalError] = useState('')
+  const [foundingPending, setFoundingPending] = useState(false)
+  const [foundingError, setFoundingError] = useState('')
+
+  async function handleFoundingUpgrade() {
+    setFoundingPending(true)
+    setFoundingError('')
+    try {
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tier: 'founding' }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok || !body.url) {
+        setFoundingError(body.error || 'Could not start checkout')
+        setFoundingPending(false)
+        return
+      }
+      window.location.href = body.url
+    } catch {
+      setFoundingError('Could not start checkout')
+      setFoundingPending(false)
+    }
+  }
 
   async function handleManageBilling() {
     setPortalPending(true)
@@ -77,6 +101,31 @@ export default function SettingsClient({
     <div>
       <h1 style={{fontFamily:'var(--font-syne)',fontWeight:800,fontSize:'1.6rem',color:'var(--ink)',marginBottom:'4px',letterSpacing:'-0.02em'}}>Settings</h1>
       <p style={{fontSize:'0.875rem',color:'var(--text-muted)',marginBottom:'32px'}}>Manage your notification preferences and contact info.</p>
+
+      {showFoundingOffer && (
+        <div style={{marginBottom:'20px',padding:'16px 20px',background:'#e8f5ee',border:'1.5px solid #c8ecd8',borderRadius:'12px',display:'flex',alignItems:'center',justifyContent:'space-between',gap:'16px',flexWrap:'wrap'}}>
+          <div>
+            <div style={{fontFamily:'var(--font-syne)',fontWeight:700,fontSize:'0.95rem',color:'var(--green-deep)',marginBottom:'2px'}}>Founding member price</div>
+            <div style={{fontSize:'0.8rem',color:'#2d7a4f'}}>Pro at $19/mo instead of $29, locked for as long as you stay subscribed.</div>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
+            <button
+              onClick={handleFoundingUpgrade}
+              disabled={foundingPending}
+              style={{
+                fontFamily:'var(--font-syne)',fontWeight:700,fontSize:'0.75rem',
+                padding:'10px 24px',background:'var(--green-deep)',color:'white',
+                borderRadius:'8px',border:'none',cursor:'pointer',whiteSpace:'nowrap',
+              }}
+            >
+              {foundingPending ? 'Opening checkout...' : 'Lock in $19/mo'}
+            </button>
+            {foundingError && (
+              <span style={{fontFamily:'var(--font-mono)',fontSize:'0.62rem',letterSpacing:'0.05em',color:'#b84040'}}>{foundingError}</span>
+            )}
+          </div>
+        </div>
+      )}
 
       <div style={{background:'white',border:'1.5px solid var(--border)',borderRadius:'12px',overflow:'hidden'}}>
         {/* Notification preferences header */}

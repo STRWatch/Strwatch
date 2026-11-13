@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import { appUrl } from '@/lib/url'
 
 export const EMAIL_FROM = 'Pete at STRWatch <alerts@strwatch.io>'
 export const EMAIL_REPLY_TO = 'peter@strwatch.io'
@@ -7,17 +8,15 @@ export type EmailTemplate = { subject: string; text: string; html: string }
 
 export type LifecycleTemplate = 'day35' | 'day45' | 'day50'
 
-function appUrl(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL || 'https://app.strwatch.io').replace(/\/$/, '')
-}
-
 function settingsUrl(): string {
   return `${appUrl()}/dashboard/settings`
 }
 
-function foundingLink(): string {
-  return process.env.FOUNDING_PAYMENT_LINK || settingsUrl()
+function foundingUpgradeUrl(): string {
+  return `${settingsUrl()}?upgrade=founding`
 }
+
+export type LifecycleContext = { foundingMember: boolean }
 
 function escapeHtml(s: string): string {
   return s
@@ -47,12 +46,12 @@ function template(subject: string, text: string): EmailTemplate {
   return { subject, text: text.trim() + '\n', html: toHtml(text) }
 }
 
-/** Day 35: 10 days left on the trial, founding-member price offer. */
-export function day35Email(): EmailTemplate {
-  const link = foundingLink()
-  return template(
-    'Your STRWatch trial ends in 10 days',
-    `Hi,
+/** Day 35: 10 days left on the trial. Founding members get the $19 locked offer. */
+export function day35Email({ foundingMember }: LifecycleContext): EmailTemplate {
+  if (foundingMember) {
+    return template(
+      'Your STRWatch trial ends in 10 days',
+      `Hi,
 
 Quick heads up from me: your Pro trial on STRWatch ends in 10 days.
 
@@ -60,7 +59,25 @@ You signed up early, so I want to make you an offer I am not going to make later
 
 If STRWatch has caught something useful for you, or you just want to keep real-time alerts across all your markets, you can lock the founding price here:
 
-${link}
+${foundingUpgradeUrl()}
+
+If it has not been useful, no hard feelings. Reply and tell me what was missing. I read every one of these.
+
+Pete
+STRWatch`
+    )
+  }
+  return template(
+    'Your STRWatch trial ends in 10 days',
+    `Hi,
+
+Quick heads up from me: your Pro trial on STRWatch ends in 10 days.
+
+After that your account moves to the Free plan: one market and a weekly digest. Pro is $29 a month and keeps all your markets, real-time alerts, SMS, and market scans.
+
+If STRWatch has caught something useful for you, you can upgrade from your settings page:
+
+${settingsUrl()}
 
 If it has not been useful, no hard feelings. Reply and tell me what was missing. I read every one of these.
 
@@ -70,7 +87,7 @@ STRWatch`
 }
 
 /** Day 45: trial over, account moved to Free. */
-export function day45Email(): EmailTemplate {
+export function day45Email(_ctx: LifecycleContext): EmailTemplate {
   const link = settingsUrl()
   return template(
     'Your STRWatch trial has ended',
@@ -92,7 +109,7 @@ STRWatch`
 }
 
 /** Day 50: honest ask for feedback from someone who did not convert. */
-export function day50Email(): EmailTemplate {
+export function day50Email(_ctx: LifecycleContext): EmailTemplate {
   return template(
     'One honest question',
     `Hi,
@@ -112,7 +129,7 @@ STRWatch`
   )
 }
 
-export const LIFECYCLE_TEMPLATES: Record<LifecycleTemplate, () => EmailTemplate> = {
+export const LIFECYCLE_TEMPLATES: Record<LifecycleTemplate, (ctx: LifecycleContext) => EmailTemplate> = {
   day35: day35Email,
   day45: day45Email,
   day50: day50Email,

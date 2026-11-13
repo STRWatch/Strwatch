@@ -7,7 +7,7 @@ import { LIFECYCLE_TEMPLATES, dueTemplates, sendEmail } from '@/lib/email'
 
 const DAY_MS = 86_400_000
 
-type TierRow = { user_id: string; tier: string; trial_ends_at: string | null }
+type TierRow = { user_id: string; tier: string; trial_ends_at: string | null; founding_member: boolean | null }
 
 /**
  * Daily: send trial lifecycle emails (day 35 / 45 / 50 after trial start).
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
   const { data: rows, error: rowsError } = await supabase
     .from('user_tiers')
-    .select('user_id, tier, trial_ends_at')
+    .select('user_id, tier, trial_ends_at, founding_member')
     .not('trial_ends_at', 'is', null)
   if (rowsError) {
     console.error('cron/emails user_tiers query error:', rowsError)
@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
 
     for (const t of pending) {
       try {
-        await sendEmail(email, LIFECYCLE_TEMPLATES[t]())
+        await sendEmail(email, LIFECYCLE_TEMPLATES[t]({ foundingMember: !!row.founding_member }))
         const { error: insertError } = await supabase
           .from('emails_sent')
           .insert({ user_id: row.user_id, template: t })
