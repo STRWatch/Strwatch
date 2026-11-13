@@ -2,6 +2,8 @@
 // Vercel serverless function for strwatch.io (vanilla Node, not Next.js)
 // Proxies .gov page fetches from DigitalOcean scraper
 
+const crypto = require('crypto');
+
 const ALLOWED_DOMAINS = [
   'charleston-sc.gov',
   'www.charleston-sc.gov',
@@ -17,13 +19,23 @@ const ALLOWED_DOMAINS = [
   'www.palmspringsca.gov',
 ];
 
+function isAuthorized(provided) {
+  const expected = process.env.PROXY_SECRET;
+  if (!expected || typeof provided !== 'string') return false;
+  const a = Buffer.from(provided, 'utf8');
+  const b = Buffer.from(expected, 'utf8');
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
 module.exports = async (req, res) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const key = req.query.key || req.headers['x-proxy-key'];
-  if (key !== process.env.PROXY_SECRET) {
+  // Shared secret is accepted from the x-proxy-secret header only (never the
+  // query string, which ends up in access logs). Constant-time comparison.
+  if (!isAuthorized(req.headers['x-proxy-secret'])) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
@@ -70,9 +82,6 @@ module.exports = async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`Proxy fetch error for ${targetUrl}:`, message);
-    return res.status(502).json({
-      error: 'Proxy fetch failed',
-      detail: message,
-    });
+    return res.status(502).json({ error: 'Proxy fetch failed' });
   }
 };
