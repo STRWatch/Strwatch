@@ -19,6 +19,10 @@ load_dotenv()
 
 log = logging.getLogger(__name__)
 
+# Tiers that receive real-time email. Anything else (free, expired trial,
+# unknown) is batched into the weekly digest (alerts/digest.py).
+REALTIME_TIERS = ("pro", "agency")
+
 
 def esc(value) -> str:
     """html.escape() any value destined for an email body. None -> ''."""
@@ -174,8 +178,13 @@ def send_sms_to_user(phone: str, message: str) -> bool:
 
 def save_alert_to_supabase(user_id: str, city: str, subject: str,
                             headline: str, detail: str, source_url: str,
-                            urgency: str, checklist_json: str = None) -> bool:
-    """Save alert to Supabase alerts table for dashboard display."""
+                            urgency: str, checklist_json: str = None,
+                            sent: bool = True) -> bool:
+    """Save alert to Supabase alerts table for dashboard display.
+
+    sent=False inserts the row with sent_at NULL so the weekly digest
+    (alerts/digest.py) picks it up later.
+    """
     if not SUPABASE_SERVICE_KEY:
         return False
     try:
@@ -187,7 +196,7 @@ def save_alert_to_supabase(user_id: str, city: str, subject: str,
             "detail": detail,
             "source_url": source_url,
             "urgency": urgency,
-            "sent_at": datetime.now(timezone.utc).isoformat(),
+            "sent_at": datetime.now(timezone.utc).isoformat() if sent else None,
         }
         if checklist_json:
             payload["checklist"] = checklist_json
@@ -282,9 +291,9 @@ def send_city_alert(city: str, subject: str, headline: str,
     user_ids = get_users_for_city(city)
     if not user_ids:
         log.info("No users watching %s", city)
-        return {"city": city, "users": 0, "sent": 0, "sms_sent": 0, "failed": 0}
+        return {"city": city, "users": 0, "sent": 0, "sms_sent": 0, "failed": 0, "queued": 0}
 
-    sent = sms_sent = failed = 0
+    sent = sms_sent = failed = queued = 0
     for user_id in user_ids:
         email = get_user_email(user_id)
         prefs = get_user_preferences(user_id)
@@ -293,7 +302,20 @@ def send_city_alert(city: str, subject: str, headline: str,
         email_enabled = prefs.get("email_enabled", True)
         sms_enabled = prefs.get("sms_enabled", True)
         phone = prefs.get("phone", "")
-        is_pro = tier in ("pro", "agency")
+        is_pro = tier in REALTIME_TIERS
+
+        # Free (or expired-trial) users get no real-time email. The alert row
+        # is still inserted with sent_at NULL and goes out in the weekly digest.
+        if not is_pro:
+            log.info("User %s is tier=%s — queuing for weekly digest", user_id, tier)
+            save_alert_to_supabase(
+                user_id=user_id, city=city, subject=subject,
+                headline=headline, detail=detail, source_url=source_url,
+                urgency=urgency, checklist_json=checklist_html if checklist_html else None,
+                sent=False,
+            )
+            queued += 1
+            continue
 
         # Send email (if enabled)
         email_ok = False
@@ -321,8 +343,10 @@ def send_city_alert(city: str, subject: str, headline: str,
             urgency=urgency, checklist_json=checklist_html if checklist_html else None,
         )
 
-    log.info("Done — city: %s | emails: %d | sms: %d | failed: %d", city, sent, sms_sent, failed)
-    return {"city": city, "users": len(user_ids), "sent": sent, "sms_sent": sms_sent, "failed": failed}
+    log.info("Done — city: %s | emails: %d | sms: %d | failed: %d | queued for digest: %d",
+             city, sent, sms_sent, failed, queued)
+    return {"city": city, "users": len(user_ids), "sent": sent, "sms_sent": sms_sent,
+            "failed": failed, "queued": queued}
 
 
 if __name__ == "__main__":

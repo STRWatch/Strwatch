@@ -1,6 +1,9 @@
 """
 tests/test_router.py — Tests for the alert routing engine.
 
+send_city_alert tests pin get_user_tier to "pro" — free users are queued for
+the weekly digest instead of emailed (see tests/test_digest.py).
+
 Covers:
 - User lookup by city
 - Email lookup via Clerk
@@ -94,12 +97,14 @@ class TestGetUserEmail:
 
 
 class TestSendCityAlert:
+    @patch('alerts.router.get_user_tier', return_value="pro")
+    @patch('alerts.router.get_user_preferences', return_value={})
     @patch('alerts.router.save_alert_to_supabase')
     @patch('alerts.router.send_alert_email')
     @patch('alerts.router.get_user_email')
     @patch('alerts.router.get_users_for_city')
     def test_sends_to_all_users_in_city(
-        self, mock_get_users, mock_get_email, mock_send, mock_save
+        self, mock_get_users, mock_get_email, mock_send, mock_save, _prefs, _tier
     ):
         mock_get_users.return_value = ["user_1", "user_2"]
         mock_get_email.side_effect = ["host1@example.com", "host2@example.com"]
@@ -123,12 +128,14 @@ class TestSendCityAlert:
         assert mock_send.call_count == 2
         assert mock_save.call_count == 2
 
+    @patch('alerts.router.get_user_tier', return_value="pro")
+    @patch('alerts.router.get_user_preferences', return_value={})
     @patch('alerts.router.save_alert_to_supabase')
     @patch('alerts.router.send_alert_email')
     @patch('alerts.router.get_user_email')
     @patch('alerts.router.get_users_for_city')
     def test_handles_email_lookup_failure(
-        self, mock_get_users, mock_get_email, mock_send, mock_save
+        self, mock_get_users, mock_get_email, mock_send, mock_save, _prefs, _tier
     ):
         mock_get_users.return_value = ["user_1", "user_2"]
         mock_get_email.side_effect = [None, "host2@example.com"]
@@ -164,12 +171,14 @@ class TestSendCityAlert:
         assert result["users"] == 0
         assert result["sent"] == 0
 
+    @patch('alerts.router.get_user_tier', return_value="pro")
+    @patch('alerts.router.get_user_preferences', return_value={})
     @patch('alerts.router.save_alert_to_supabase')
     @patch('alerts.router.send_alert_email')
     @patch('alerts.router.get_user_email')
     @patch('alerts.router.get_users_for_city')
     def test_checklist_html_passed_to_email(
-        self, mock_get_users, mock_get_email, mock_send, mock_save
+        self, mock_get_users, mock_get_email, mock_send, mock_save, _prefs, _tier
     ):
         mock_get_users.return_value = ["user_1"]
         mock_get_email.return_value = "host@example.com"
