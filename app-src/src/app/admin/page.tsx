@@ -15,7 +15,6 @@ type TierRow = {
 }
 type MarketRow = { user_id: string; city: string }
 type AlertRow = { urgency: string }
-type ScanRow = { is_enriched: boolean }
 type WaitlistRow = { email: string; created_at: string }
 type ScrapeRunRow = {
   source: string
@@ -68,31 +67,49 @@ export default async function AdminPage() {
   const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString()
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
 
-  const [tierRes, marketRes, waitlistRes, alertRes, scanRes, recentWaitlistRes, scrapeRunsRes] = await Promise.all([
-    supabase.from('user_tiers').select(TIER_SELECT),
-    supabase.from('user_markets').select('user_id, city'),
-    supabase.from('waitlist').select('email, created_at'),
+  const PAGE_SIZE = 1000
+
+  /** Pages a query with .range() until a short page; errors are collected, not thrown. */
+  async function fetchAll<T>(label: string, build: (from: number, to: number) => PromiseLike<{ data: unknown; error: { message: string } | null }>): Promise<T[]> {
+    const rows: T[] = []
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const { data, error } = await build(from, from + PAGE_SIZE - 1)
+      if (error) { errors.push(`${label}: ${error.message}`); break }
+      const page = (data || []) as T[]
+      rows.push(...page)
+      if (page.length < PAGE_SIZE) break
+    }
+    return rows
+  }
+
+  const countOf = (label: string) => (res: { count: number | null; error: { message: string } | null }): number => {
+    if (res.error) errors.push(`${label}: ${res.error.message}`)
+    return res.count ?? 0
+  }
+
+  const [tiers, markets, scrapeRuns, waitlistTotalRes, waitlist7dRes, alertRes, queuedAlertsRes, totalScansRes, enrichedScansRes, recentWaitlistRes] = await Promise.all([
+    fetchAll<TierRow>('user_tiers', (from, to) => supabase.from('user_tiers').select(TIER_SELECT).order('user_id').range(from, to)),
+    fetchAll<MarketRow>('user_markets', (from, to) => supabase.from('user_markets').select('user_id, city').order('user_id').order('city').range(from, to)),
+    fetchAll<ScrapeRunRow>('scrape_runs', (from, to) => supabase.from('scrape_runs').select('source, city, status, started_at, finished_at, pages_changed, error').order('started_at', { ascending: false }).order('id', { ascending: false }).range(from, to)),
+    supabase.from('waitlist').select('*', { count: 'exact', head: true }),
+    supabase.from('waitlist').select('*', { count: 'exact', head: true }).gte('created_at', sevenDaysAgo),
     supabase.from('alerts').select('urgency, sent_at').gte('sent_at', thirtyDaysAgo),
-    supabase.from('scans').select('is_enriched'),
+    supabase.from('alerts').select('*', { count: 'exact', head: true }).is('sent_at', null),
+    supabase.from('scans').select('*', { count: 'exact', head: true }),
+    supabase.from('scans').select('*', { count: 'exact', head: true }).eq('is_enriched', true),
     supabase.from('waitlist').select('email, created_at').order('created_at', { ascending: false }).limit(10),
-    supabase.from('scrape_runs').select('source, city, status, started_at, finished_at, pages_changed, error').order('started_at', { ascending: false }).limit(2000),
   ])
 
-  if (tierRes.error) errors.push(`user_tiers: ${tierRes.error.message}`)
-  if (marketRes.error) errors.push(`user_markets: ${marketRes.error.message}`)
-  if (waitlistRes.error) errors.push(`waitlist: ${waitlistRes.error.message}`)
   if (alertRes.error) errors.push(`alerts: ${alertRes.error.message}`)
-  if (scanRes.error) errors.push(`scans: ${scanRes.error.message}`)
   if (recentWaitlistRes.error) errors.push(`recent waitlist: ${recentWaitlistRes.error.message}`)
-  if (scrapeRunsRes.error) errors.push(`scrape_runs: ${scrapeRunsRes.error.message}`)
 
-  const tiers = (tierRes.data || []) as TierRow[]
-  const markets = (marketRes.data || []) as MarketRow[]
-  const waitlist = (waitlistRes.data || []) as WaitlistRow[]
   const alerts = (alertRes.data || []) as (AlertRow & { sent_at: string })[]
-  const scans = (scanRes.data || []) as ScanRow[]
   const recentWaitlist = (recentWaitlistRes.data || []) as WaitlistRow[]
-  const scrapeRuns = (scrapeRunsRes.data || []) as ScrapeRunRow[]
+  const waitlistTotal = countOf('waitlist count')(waitlistTotalRes)
+  const waitlist7d = countOf('waitlist 7d count')(waitlist7dRes)
+  const queuedAlerts = countOf('queued alerts count')(queuedAlertsRes)
+  const totalScans = countOf('scans count')(totalScansRes)
+  const enrichedScans = countOf('enriched scans count')(enrichedScansRes)
 
   // ── Resolve emails from Clerk (all accounts, batches of 100) ───
   const emailMap: Record<string, string> = {}
@@ -173,16 +190,11 @@ export default async function AdminPage() {
   for (const m of markets) marketCountByUser[m.user_id] = (marketCountByUser[m.user_id] || 0) + 1
   const userRows = [...tiers].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
 
-  // ── Waitlist stats ─────────────────────────────────────
-  const waitlistTotal = waitlist.length
-  const waitlist7d = waitlist.filter(w => w.created_at >= sevenDaysAgo).length
 
   // ── Engagement ─────────────────────────────────────────
   const activeUserIds = new Set(markets.map(m => m.user_id))
   const activeUsers = activeUserIds.size
   const avgMarkets = activeUsers > 0 ? (markets.length / activeUsers).toFixed(1) : '0'
-  const totalScans = scans.length
-  const enrichedScans = scans.filter(s => s.is_enriched).length
   const alertsSent30d = alerts.length
 
   // ── Top cities ─────────────────────────────────────────
@@ -371,6 +383,11 @@ export default async function AdminPage() {
         <div style={card}>
           <div style={bigNum}>{alertsSent30d}</div>
           <div style={label}>Alerts sent (30d)</div>
+        </div>
+        <div style={card}>
+          <div style={bigNum}>{queuedAlerts}</div>
+          <div style={label}>Queued for digest</div>
+          <div style={{ fontSize: '0.6rem', color: '#94a3b8', marginTop: '4px' }}>Alerts with no sent_at yet</div>
         </div>
       </div>
 
